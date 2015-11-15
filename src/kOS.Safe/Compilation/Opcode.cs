@@ -6,6 +6,9 @@ using kOS.Safe.Encapsulation;
 using kOS.Safe.Execution;
 using kOS.Safe.Exceptions;
 using kOS.Safe.Utilities;
+using kOS.Safe.Persistence;
+
+
 namespace kOS.Safe.Compilation
 {
     /// A very short numerical ID for the opcode. <br/>
@@ -213,7 +216,7 @@ namespace kOS.Safe.Compilation
         public int MLIndex { get; set; } // index into the Machine Language code file for the COMPILE command.
         public string Label {get{return label;} set {label = value;} }
         public virtual string DestinationLabel {get;set;}
-        public string SourceName;
+        public GlobalPath SourcePath;
 
         public short SourceLine { get; set; } // line number in the source code that this was compiled from.
         public short SourceColumn { get; set; }  // column number of the token nearest the cause of this Opcode.

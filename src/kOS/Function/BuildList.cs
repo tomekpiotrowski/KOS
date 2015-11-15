@@ -5,6 +5,7 @@ using kOS.Safe.Function;
 using kOS.Suffixed;
 using kOS.Utilities;
 using kOS.Suffixed.PartModuleField;
+using kOS.Safe;
 
 namespace kOS.Function
 {
@@ -40,7 +41,7 @@ namespace kOS.Function
                     list = shared.Vessel.PartList(listType, shared);
                     break;
                 case "files":
-                    list = ListValue.CreateList(shared.VolumeMgr.CurrentVolume.GetFileList());
+                    list = ListValue.CreateList(shared.VolumeMgr.CurrentVolume.Root.List());
                     break;
                 case "volumes":
                     list = ListValue.CreateList(shared.VolumeMgr.Volumes.Values.ToList());

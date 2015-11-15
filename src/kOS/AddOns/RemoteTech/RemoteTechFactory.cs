@@ -1,6 +1,7 @@
 ﻿using kOS.Factories;
 using kOS.Safe.Persistence;
 using kOS.Safe.Screen;
+using kOS.Safe.Utilities;
 
 namespace kOS.AddOns.RemoteTech
 {
@@ -13,7 +14,7 @@ namespace kOS.AddOns.RemoteTech
 
         public Archive CreateArchive()
         {
-            return new RemoteTechArchive();
+            return new RemoteTechArchive(SafeHouse.ArchiveFolder);
         }
 
         public VolumeManager CreateVolumeManager(SharedObjects sharedObjects)

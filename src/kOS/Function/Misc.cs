@@ -11,6 +11,8 @@ using System.Collections.Generic;
 using kOS.Suffixed.PartModuleField;
 using kOS.Module;
 using kOS.Safe.Encapsulation;
+using kOS.Safe;
+using System.Text;
 
 namespace kOS.Function
 {
@@ -142,7 +144,7 @@ namespace kOS.Function
             // run() is strange.  It needs two levels of args - the args to itself, and the args it is meant to
             // pass on to the program it's invoking.  First, these are the args to run itself:
             object volumeId = PopValueAssert(shared, true);
-            string fileName = PopValueAssert(shared, true).ToString();
+            string pathString = PopValueAssert(shared, true).ToString();
             AssertArgBottomAndConsume(shared);
 
             // Now the args it is going to be passing on to the program:
@@ -153,10 +155,14 @@ namespace kOS.Function
             AssertArgBottomAndConsume(shared);
 
             if (shared.VolumeMgr == null) return;
-            if (shared.VolumeMgr.CurrentVolume == null) throw new Exception("Volume not found");
 
-            ProgramFile file = shared.VolumeMgr.CurrentVolume.GetByName(fileName, true);
-            if (file == null) throw new Exception(string.Format("File '{0}' not found", fileName));
+            GlobalPath path = shared.VolumeMgr.GlobalPathFromString(pathString);
+            Volume volume = shared.VolumeMgr.FromPath(path);
+            VolumeFile volumeFile = volume.Get(path) as VolumeFile;
+
+            byte[] content = volumeFile != null ? volumeFile.Read() : null;
+
+            if (content == null) throw new Exception(string.Format("File '{0}' not found", path));
             if (shared.ScriptHandler == null) return;
 
             if (volumeId != null)
@@ -166,9 +172,8 @@ namespace kOS.Function
                 {
                     if (shared.ProcessorMgr != null)
                     {
-                        string filePath = string.Format("{0}/{1}", shared.VolumeMgr.GetVolumeRawIdentifier(targetVolume), fileName);
                         var options = new CompilerOptions { LoadProgramsInSameAddressSpace = true, FuncManager = shared.FunctionManager };
-                        List<CodePart> parts = shared.ScriptHandler.Compile(filePath, 1, file.StringContent, "program", options);
+                        List<CodePart> parts = shared.ScriptHandler.Compile(path, 1, Encoding.UTF8.GetString(content), "program", options);
                         var builder = new ProgramBuilder();
                         builder.AddRange(parts);
                         List<Opcode> program = builder.BuildProgram();
@@ -184,21 +189,22 @@ namespace kOS.Function
             {
                 // clear the "program" compilation context
                 shared.ScriptHandler.ClearContext("program");
-                string filePath = shared.VolumeMgr.GetVolumeRawIdentifier(shared.VolumeMgr.CurrentVolume) + "/" + fileName;
+                //string filePath = shared.VolumeMgr.GetVolumeRawIdentifier(shared.VolumeMgr.CurrentVolume) + "/" + fileName;
                 var options = new CompilerOptions { LoadProgramsInSameAddressSpace = true, FuncManager = shared.FunctionManager };
                 var programContext = ((CPU)shared.Cpu).SwitchToProgramContext();
 
                 List<CodePart> codeParts;
-                if (file.Category == FileCategory.KSM)
+                FileCategory category = PersistenceUtilities.IdentifyCategory(content);
+                if (category == FileCategory.KSM)
                 {
                     string prefix = programContext.Program.Count.ToString();
-                    codeParts = shared.VolumeMgr.CurrentVolume.LoadObjectFile(filePath, prefix, file.BinaryContent);
+                    codeParts = CompiledObject.UnPack(path, prefix, content);
                 }
                 else
                 {
                     try
                     {
-                        codeParts = shared.ScriptHandler.Compile(filePath, 1, file.StringContent, "program", options);
+                        codeParts = shared.ScriptHandler.Compile(path, 1, Encoding.UTF8.GetString(content), "program", options);
                     }
                     catch (Exception)
                     {
@@ -233,7 +239,7 @@ namespace kOS.Function
         {
             bool defaultOutput = false;
             bool justCompiling = false; // is this load() happening to compile, or to run?
-            string fileNameOut = null;
+            string outPathString = null;
             object topStack = PopValueAssert(shared, true); // null if there's no output file (output file means compile, not run).
             if (topStack != null)
             {
@@ -242,28 +248,33 @@ namespace kOS.Function
                 if (outputArg.Equals("-default-compile-out-"))
                     defaultOutput = true;
                 else
-                    fileNameOut = PersistenceUtilities.CookedFilename(outputArg, Volume.KOS_MACHINELANGUAGE_EXTENSION);
+                    outPathString = outputArg;
             }
 
-            string fileName = null;
+            string pathString = null;
             topStack = PopValueAssert(shared, true);
             if (topStack != null)
-                fileName = topStack.ToString();
+                pathString = topStack.ToString();
 
             AssertArgBottomAndConsume(shared);
 
-            if (fileName == null)
+            if (pathString == null)
                 throw new KOSFileException("No filename to load was given.");
 
-            ProgramFile file = shared.VolumeMgr.CurrentVolume.GetByName(fileName, (!justCompiling)); // if running, look for KSM first.  If compiling look for KS first.
-            if (file == null) throw new KOSFileException(string.Format("Can't find file '{0}'.", fileName));
-            fileName = file.Filename; // just in case GetByName picked an extension that changed it.
+            GlobalPath path = shared.VolumeMgr.GlobalPathFromString(pathString);
+            Volume volume = shared.VolumeMgr.FromPath(path);
+
+            VolumeFile file = volume.Get(path) as VolumeFile; // if running, look for KSM first.  If compiling look for KS first.
+            if (file == null) throw new KOSFileException(string.Format("Can't find file '{0}'.", path));
+            string fileName = file.Name; // just in case Get picked an extension that changed it.
 
             // filename is now guaranteed to have an extension.  To make default output name, replace the extension with KSM:
             if (defaultOutput)
-                fileNameOut = fileName.Substring(0, fileName.LastIndexOf('.')) + "." + Volume.KOS_MACHINELANGUAGE_EXTENSION;
+                outPathString = fileName.Substring(0, fileName.LastIndexOf('.')) + "." + Volume.KOS_MACHINELANGUAGE_EXTENSION;
 
-            if (fileNameOut != null && fileName == fileNameOut)
+            GlobalPath outPath = GlobalPath.FromString(outPathString);
+
+            if (path.Equals(outPath))
                 throw new KOSFileException("Input and output filenames must differ.");
 
             if (shared.VolumeMgr == null) return;
@@ -272,13 +283,13 @@ namespace kOS.Function
             if (shared.ScriptHandler != null)
             {
                 var options = new CompilerOptions { LoadProgramsInSameAddressSpace = true, FuncManager = shared.FunctionManager };
-                string filePath = shared.VolumeMgr.GetVolumeRawIdentifier(shared.VolumeMgr.CurrentVolume) + "/" + fileName;
                 // add this program to the address space of the parent program,
                 // or to a file to save:
                 if (justCompiling)
                 {
-                    List<CodePart> compileParts = shared.ScriptHandler.Compile(filePath, 1, file.StringContent, String.Empty, options);
-                    bool success = shared.VolumeMgr.CurrentVolume.SaveObjectFile(fileNameOut, compileParts);
+                    List<CodePart> compileParts = shared.ScriptHandler.Compile(path, 1, file.ReadAsString(), String.Empty, options);
+                    VolumeFile outFile = volume.GetOrCreateFile(outPath);
+                    bool success = outFile.Write(compileParts);
                     if (!success)
                     {
                         throw new KOSFileException("Can't save compiled file: not enough space or access forbidden");
@@ -291,11 +302,11 @@ namespace kOS.Function
                     if (file.Category == FileCategory.KSM)
                     {
                         string prefix = programContext.Program.Count.ToString();
-                        parts = shared.VolumeMgr.CurrentVolume.LoadObjectFile(filePath, prefix, file.BinaryContent);
+                        parts = CompiledObject.UnPack(GlobalPath.FromVolumePath(file.Path, volume), prefix, file.Read());
                     }
                     else
                     {
-                        parts = shared.ScriptHandler.Compile(filePath, 1, file.StringContent, "program", options);
+                        parts = shared.ScriptHandler.Compile(path, 1, file.ReadAsString(), "program", options);
                     }
                     int programAddress = programContext.AddObjectParts(parts);
                     // push the entry point address of the new program onto the stack
@@ -332,24 +343,31 @@ namespace kOS.Function
     {
         public override void Execute(SharedObjects shared)
         {
-            string fileName = PopValueAssert(shared, true).ToString();
-            string expressionResult = PopValueAssert(shared).ToString();
+            string pathString = PopValueAssert(shared, true).ToString();
+            string toAppend = PopValueAssert(shared).ToString();
             AssertArgBottomAndConsume(shared);
 
             if (shared.VolumeMgr != null)
             {
-                Volume volume = shared.VolumeMgr.CurrentVolume;
-                if (volume != null)
-                {
-                    if (!volume.AppendToFile(fileName, expressionResult))
-                    {
-                        throw new KOSFileException("Can't append to file: not enough space or access forbidden");
-                    }
+                GlobalPath path = shared.VolumeMgr.GlobalPathFromString(pathString);
+                Volume volume = shared.VolumeMgr.FromPath(path);
+
+                VolumeItem volumeItem = volume.Get(path) as VolumeFile;
+                VolumeFile volumeFile = null;
+
+                if (volumeItem == null) {
+                    volumeFile = volume.CreateFile(path);
+                } else if (volumeItem is VolumeDirectory) {
+                    throw new KOSFileException("Can't append to file: path points to a directory");
+                } else {
+                    volumeFile = volumeItem as VolumeFile;
                 }
-                else
+
+                if (!volumeFile.Append(Encoding.UTF8.GetBytes(toAppend.ToCharArray())))
                 {
-                    throw new KOSFileException("Volume not found");
+                    throw new KOSFileException("Can't append to file: not enough space or access forbidden");
                 }
+
             }
         }
     }

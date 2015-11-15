@@ -271,11 +271,14 @@ namespace kOS.Safe.Compilation.KS
                 case TokenType.switch_stmt:
                     Value = Evalswitch_stmt(tree, paramlist);
                     break;
+                case TokenType.cd_stmt:
+                    Value = Evalcd_stmt(tree, paramlist);
+                    break;
                 case TokenType.copy_stmt:
                     Value = Evalcopy_stmt(tree, paramlist);
                     break;
-                case TokenType.rename_stmt:
-                    Value = Evalrename_stmt(tree, paramlist);
+                case TokenType.move_stmt:
+                    Value = Evalmove_stmt(tree, paramlist);
                     break;
                 case TokenType.delete_stmt:
                     Value = Evaldelete_stmt(tree, paramlist);
@@ -587,6 +590,13 @@ namespace kOS.Safe.Compilation.KS
             return null;
         }
 
+        protected virtual object Evalcd_stmt(ParseTree tree, params object[] paramlist)
+        {
+            foreach (var node in Nodes)
+                node.Eval(tree, paramlist);
+            return null;
+        }
+
         protected virtual object Evalcopy_stmt(ParseTree tree, params object[] paramlist)
         {
             foreach (var node in Nodes)
@@ -594,7 +604,7 @@ namespace kOS.Safe.Compilation.KS
             return null;
         }
 
-        protected virtual object Evalrename_stmt(ParseTree tree, params object[] paramlist)
+        protected virtual object Evalmove_stmt(ParseTree tree, params object[] paramlist)
         {
             foreach (var node in Nodes)
                 node.Eval(tree, paramlist);

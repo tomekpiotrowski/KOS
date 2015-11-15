@@ -119,7 +119,7 @@ namespace kOS.Execution
                 if (index >= 0 && index < Program.Count) {
                     codeFragment.Add(string.Format(
                         FORMAT_STR,
-                        Program[index].SourceName,
+                        Program[index].SourcePath,
                         Program[index].SourceLine,
                         Program[index].SourceColumn,
                         index,

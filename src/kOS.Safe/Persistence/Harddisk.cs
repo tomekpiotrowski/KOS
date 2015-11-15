@@ -1,17 +1,94 @@
 ﻿using kOS.Safe.Utilities;
+using System.Collections.Generic;
+using System;
 
 namespace kOS.Safe.Persistence
 {
-    public sealed class Harddisk : Volume
+    public class Harddisk : Volume
     {
-        public Harddisk(int size)
-        {
-            Capacity = size;
+        protected const int BASE_CAPACITY = 10000;
+
+        private int capacity;
+
+        public HarddiskDirectory RootHarddiskDirectory { get; set; }
+
+        public override VolumeDirectory Root { 
+            get
+            {
+                return RootHarddiskDirectory;
+            }
         }
 
-        public override bool SaveFile(ProgramFile file)
+        public Harddisk(int size)
         {
-            SafeHouse.Logger.Log("HardDisk: SaveFile: " + file.Filename);
+            InitializeName("");
+            capacity = size;
+            RootHarddiskDirectory = new HarddiskDirectory(this, VolumePath.EMPTY);
+        }
+
+        private HarddiskDirectory ParentDirectoryForPath(VolumePath path, bool create = false)
+        {
+            HarddiskDirectory directory = RootHarddiskDirectory;
+            if (path.Depth > 1)
+            {
+                directory = RootHarddiskDirectory.GetSubdirectory(path.GetParent(), create);
+            }
+
+            return directory;
+        }
+
+        public override VolumeDirectory CreateDirectory(VolumePath path)
+        {
+            HarddiskDirectory directory = ParentDirectoryForPath(path, true);
+
+            return directory.CreateDirectory(path.Name);
+        }
+            
+        public override VolumeFile CreateFile(VolumePath path)
+        {
+            HarddiskDirectory directory = ParentDirectoryForPath(path, true);
+
+            return directory.CreateFile(path.Name);
+        }
+                        
+        public override VolumeItem Get(VolumePath path)
+        {
+            HarddiskDirectory directory = ParentDirectoryForPath(path);
+
+            return directory.Get(path.Name);
+        }
+
+        public void Delete(VolumePath path)
+        {
+            HarddiskDirectory directory = ParentDirectoryForPath(path);
+
+            directory.DeleteItem(path.Name);
+        }
+
+        public override int Capacity {
+            get {
+                return capacity;
+            }
+        }
+
+        public override bool Renameable {
+            get {
+                throw new NotImplementedException ();
+            }
+        }
+
+        public override float RequiredPower {
+            get {
+                throw new NotImplementedException ();
+            }
+        }
+
+
+        /*
+
+        public override bool SaveFile(VolumeFile file)
+        {
+            SafeHouse.Logger.Log("HardDisk: SaveFile: " + file.Name);
             return IsRoomFor(file) && base.SaveFile(file);
         }
 
@@ -20,10 +97,10 @@ namespace kOS.Safe.Persistence
             return System.Math.Max(Capacity - GetUsedSpace(), 0);
         }
 
-        public override bool IsRoomFor(ProgramFile newFile)
+        public override bool IsRoomFor(VolumeFile newFile)
         {
             int usedSpace = GetUsedSpace();
-            ProgramFile existingFile = GetByName(newFile.Filename);
+            VolumeFile existingFile = GetByName(newFile.Name);
 
             if (existingFile != null)
             {
@@ -32,5 +109,6 @@ namespace kOS.Safe.Persistence
 
             return ((Capacity - usedSpace) >= newFile.GetSize());
         }
+        */
     }
 }

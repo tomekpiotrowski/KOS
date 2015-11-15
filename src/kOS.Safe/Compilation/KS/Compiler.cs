@@ -1122,8 +1122,11 @@ namespace kOS.Safe.Compilation.KS
                 case TokenType.copy_stmt:
                     VisitCopyStatement(node);
                     break;
-                case TokenType.rename_stmt:
-                    VisitRenameStatement(node);
+                case TokenType.move_stmt:
+                    VisitMoveStatement(node);
+                    break;
+                case TokenType.cd_stmt:
+                    VisitCdStatement(node);
                     break;
                 case TokenType.delete_stmt:
                     VisitDeleteStatement(node);
@@ -2669,41 +2672,36 @@ namespace kOS.Safe.Compilation.KS
             AddOpcode(new OpcodePop()); // all functions now return a value even if it's a dummy we ignore.
         }
 
+        private void VisitCdStatement(ParseNode node)
+        {
+            NodeStartHousekeeping(node);
+            AddOpcode(new OpcodePush(OpcodeCall.ARG_MARKER_STRING));
+            VisitNode(node.Nodes[1]);
+
+            AddOpcode(new OpcodeCall("cd()"));
+            AddOpcode(new OpcodePop()); // all functions now return a value even if it's a dummy we ignore.
+        }
+
         private void VisitCopyStatement(ParseNode node)
         {
             NodeStartHousekeeping(node);
             AddOpcode(new OpcodePush(OpcodeCall.ARG_MARKER_STRING));
             VisitNode(node.Nodes[1]);
 
-            AddOpcode(new OpcodePush(node.Nodes[2].Token.Type == TokenType.FROM ? "from" : "to"));
-
             VisitNode(node.Nodes[3]);
             AddOpcode(new OpcodeCall("copy()"));
             AddOpcode(new OpcodePop()); // all functions now return a value even if it's a dummy we ignore.
         }
 
-        private void VisitRenameStatement(ParseNode node)
+        private void VisitMoveStatement(ParseNode node)
         {
             NodeStartHousekeeping(node);
-            int oldNameIndex = 2;
-            int newNameIndex = 4;
-
             AddOpcode(new OpcodePush(OpcodeCall.ARG_MARKER_STRING));
-            if (node.Nodes.Count == 5)
-            {
-                oldNameIndex--;
-                newNameIndex--;
-                AddOpcode(new OpcodePush("file"));
-            }
-            else
-            {
-                AddOpcode(new OpcodePush(node.Nodes[1].Token.Type == TokenType.FILE ? "file" : "volume"));
-            }
+            VisitNode(node.Nodes[1]);
 
-            VisitNode(node.Nodes[oldNameIndex]);
-            VisitNode(node.Nodes[newNameIndex]);
-            AddOpcode(new OpcodeCall("rename()"));
-            AddOpcode(new OpcodePop()); // all functions now return a value even if it's a dummy we ignore.
+            VisitNode(node.Nodes[3]);
+            AddOpcode(new OpcodeCall("move()"));
+            AddOpcode(new OpcodePop()); // all functions now return a value even if it's a dummy we ignore.       
         }
 
         private void VisitDeleteStatement(ParseNode node)
@@ -2711,11 +2709,6 @@ namespace kOS.Safe.Compilation.KS
             NodeStartHousekeeping(node);
             AddOpcode(new OpcodePush(OpcodeCall.ARG_MARKER_STRING));
             VisitNode(node.Nodes[1]);
-
-            if (node.Nodes.Count == 5)
-                VisitNode(node.Nodes[3]);
-            else
-                AddOpcode(new OpcodePush(null));
 
             AddOpcode(new OpcodeCall("delete()"));
             AddOpcode(new OpcodePop()); // all functions now return a value even if it's a dummy we ignore.

@@ -145,7 +145,6 @@
     <Compile Include="Persistence\Harddisk.cs" />
     <Compile Include="Persistence\KOSFileException.cs" />
     <Compile Include="Persistence\PersistenceUtilities.cs" />
-    <Compile Include="Persistence\ProgramFile.cs" />
     <Compile Include="Persistence\Volume.cs" />
     <Compile Include="Persistence\VolumeManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -176,6 +175,17 @@
     <Compile Include="Utilities\kOSKeys.cs" />
     <Compile Include="Utilities\Math.cs" />
     <Compile Include="Utilities\TickGen.cs" />
+    <Compile Include="Persistence\VolumeItem.cs" />
+    <Compile Include="Persistence\VolumePath.cs" />
+    <Compile Include="Persistence\GlobalPath.cs" />
+    <Compile Include="Persistence\VolumeFile.cs" />
+    <Compile Include="Persistence\VolumeDirectory.cs" />
+    <Compile Include="Exceptions\KOSInvalidPathException.cs" />
+    <Compile Include="Persistence\HarddiskDirectory.cs" />
+    <Compile Include="Persistence\ArchiveDirectory.cs" />
+    <Compile Include="Persistence\ArchiveFile.cs" />
+    <Compile Include="Persistence\HarddiskFile.cs" />
+    <Compile Include="Persistence\CookedVolume.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Compilation\CompiledObject-doc.md" />

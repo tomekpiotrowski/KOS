@@ -239,11 +239,12 @@ namespace kOS.Module
 
             var bootFiles = new List<string>();
 
-            var temp = new Archive();
-            var files = temp.GetFileList();
+            var temp = new Archive(SafeHouse.ArchiveFolder);
+            // TODO: 'boot_' or 'boot/' subdirectory
+            var files = temp.Root.List();
             var maxchoice = 0;
             bootFiles.Add("None");
-            foreach (FileInfo file in files)
+            foreach (VolumeFile file in files)
             {
                 if (!file.Name.StartsWith("boot", StringComparison.InvariantCultureIgnoreCase)) continue;
                 bootFiles.Add(file.Name);
@@ -305,12 +306,12 @@ namespace kOS.Module
                 // populate it with the boot file, but only if using a new disk and in PRELAUNCH situation:
                 if (vessel.situation == Vessel.Situations.PRELAUNCH && bootFile != "None" && !Config.Instance.StartOnArchive)
                 {
-                    var bootProgramFile = archive.GetByName(bootFile);
-                    if (bootProgramFile != null)
+                    var bootVolumeFile = archive.Get(VolumePath.FromString(bootFile)) as VolumeFile;
+                    if (bootVolumeFile != null)
                     {
-                        // Copy to HardDisk as "boot".
-                        var boot = new ProgramFile(bootProgramFile) { Filename = bootFile };
-                        HardDisk.Add(boot);
+                        // Copy to HardDisk
+                        VolumeFile copiedBootFile = HardDisk.CreateFile(VolumePath.FromString("/" + bootVolumeFile.Path.Name));
+                        copiedBootFile.Write(bootVolumeFile.Read());
                     }
                 }
             }

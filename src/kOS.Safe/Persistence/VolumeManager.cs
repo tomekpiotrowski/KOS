@@ -1,28 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
+using kOS.Safe.Exceptions;
 
 namespace kOS.Safe.Persistence
 {
     public class VolumeManager
     {
         private readonly Dictionary<int, Volume> volumes;
-        private Volume currentVolume;
         private int lastId;
-        
+
+        public virtual Volume CurrentVolume { get; set; }
         public Dictionary<int, Volume> Volumes { get { return volumes; } }
-        public virtual Volume CurrentVolume { get { return currentVolume; } }
+        public VolumeDirectory CurrentDirectory { get; set; }
         public float CurrentRequiredPower { get; private set; }
 
         public VolumeManager()
         {
             volumes = new Dictionary<int, Volume>();
-            currentVolume = null;
+            CurrentVolume = null;
+            CurrentDirectory = null;
         }
 
 
         public bool VolumeIsCurrent(Volume volume)
         {
-            return volume == currentVolume;
+            return volume == CurrentVolume;
         }
 
         private int GetVolumeId(string name)
@@ -86,9 +88,9 @@ namespace kOS.Safe.Persistence
             {
                 volumes.Add(lastId++, volume);
 
-                if (currentVolume == null)
+                if (CurrentVolume == null)
                 {
-                    currentVolume = volumes[0];
+                    CurrentVolume = volumes[0];
                     UpdateRequiredPower();
                 }
             }
@@ -107,16 +109,16 @@ namespace kOS.Safe.Persistence
             {
                 volumes.Remove(id);
 
-                if (currentVolume == volume)
+                if (CurrentVolume == volume)
                 {
                     if (volumes.Count > 0)
                     {
-                        currentVolume = volumes[0];
+                        CurrentVolume = volumes[0];
                         UpdateRequiredPower();
                     }
                     else
                     {
-                        currentVolume = null;
+                        CurrentVolume = null;
                     }
                 }
             }
@@ -124,11 +126,9 @@ namespace kOS.Safe.Persistence
 
         public void SwitchTo(Volume volume)
         {
-            if (volume != null)
-            {
-                currentVolume = volume;
-                UpdateRequiredPower();
-            }
+            CurrentVolume = volume;
+            CurrentDirectory = volume.Root;
+            UpdateRequiredPower();
         }
 
         public void UpdateVolumes(List<Volume> attachedVolumes)
@@ -178,7 +178,40 @@ namespace kOS.Safe.Persistence
 
         private void UpdateRequiredPower()
         {
-            CurrentRequiredPower = (float)Math.Round(currentVolume.RequiredPower(), 4);
+            CurrentRequiredPower = (float)Math.Round(CurrentVolume.RequiredPower, 4);
+        }
+
+        // Handles global, absolute and relative paths
+        public GlobalPath GlobalPathFromString(string pathString)
+        {
+            if (GlobalPath.HasVolumeId(pathString))
+            {
+                return GlobalPath.FromString(pathString);
+            }
+            else
+            {
+                if (GlobalPath.IsAbsolute(pathString))
+                {
+                    return GlobalPath.FromVolumePath(VolumePath.FromString(pathString), CurrentVolume);
+                }
+                else
+                {
+                    return GlobalPath.FromStringAndBase(pathString, GlobalPath.FromVolumePath(CurrentDirectory.Path, CurrentVolume));
+                }
+            }
+
+        }
+
+        public Volume FromPath(GlobalPath path)
+        {
+            Volume volume = GetVolume(path.VolumeId);
+
+            if (volume == null)
+            {
+                throw new KOSPersistenceException("Volume not found: " + path.VolumeId);
+            }
+
+            return volume;
         }
     }
 }

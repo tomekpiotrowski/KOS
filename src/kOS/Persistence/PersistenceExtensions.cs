@@ -6,12 +6,14 @@ using kOS.AddOns.RemoteTech;
 using kOS.Safe.Persistence;
 using kOS.Safe.Utilities;
 using kOS.Suffixed;
+using kOS.Safe;
 
 namespace kOS.Persistence
 {
     public static class PersistenceExtensions
     {
         private const string FILENAME_VALUE_STRING = "filename";
+        private const string DIRNAME_VALUE_STRING = "dirname";
 
         public static Harddisk ToHardDisk(this ConfigNode configNode)
         {
@@ -21,63 +23,122 @@ namespace kOS.Persistence
             var toReturn = new Harddisk(capacity);
             
             if (configNode.HasValue("volumeName")) toReturn.Name = configNode.GetValue("volumeName");
-            
-            foreach (ConfigNode fileNode in configNode.GetNodes("file"))
-            {
-                toReturn.Add(fileNode.ToProgramFile());
-            }
+
+            toReturn.RootHarddiskDirectory = configNode.ToHarddiskDirectory(toReturn, VolumePath.EMPTY);
+
             return toReturn;
         }
 
-        public static ProgramFile ToProgramFile(this ConfigNode configNode)
+        private static HarddiskDirectory ToHarddiskDirectory(this ConfigNode configNode, Harddisk harddisk, VolumePath parentPath)
+        {
+            string dirName = configNode.GetValue(DIRNAME_VALUE_STRING);
+            HarddiskDirectory directory = new HarddiskDirectory(harddisk, VolumePath.FromString(dirName, parentPath));
+
+            foreach (ConfigNode fileNode in configNode.GetNodes("file"))
+            {
+                directory.CreateFile(fileNode.GetValue(FILENAME_VALUE_STRING), fileNode.ToHarddiskFile(harddisk, directory.Path));
+            }
+
+            foreach (ConfigNode dirNode in configNode.GetNodes("directory"))
+            {
+                directory.CreateDirectory(dirName, dirNode.ToHarddiskDirectory(harddisk, VolumePath.FromString(dirName, parentPath)));
+            }
+
+            return directory;
+        }
+
+        public static HarddiskFile ToHarddiskFile(this ConfigNode configNode, Harddisk harddisk, VolumePath parentPath)
         {
             var filename = configNode.GetValue(FILENAME_VALUE_STRING);
-            var toReturn = new ProgramFile(filename);
+            var toReturn = new HarddiskFile(harddisk, VolumePath.FromString(filename, parentPath));
 
-            Decode(toReturn, configNode.GetValue("line"));
+            toReturn.Content = Decode(configNode.GetValue("line"));
             return toReturn;
         }
 
         public static ConfigNode ToConfigNode(this Harddisk harddisk, string nodeName)
         {
-            var node = new ConfigNode(nodeName);
+            var node = harddisk.RootHarddiskDirectory.ToConfigNode(nodeName);
+
             node.AddValue("capacity", harddisk.Capacity);
             node.AddValue("volumeName", harddisk.Name);
 
-            foreach (ProgramFile file in harddisk.FileList.Values)
-            {
-                node.AddNode(file.ToConfigNode("file"));
-            }
-            
             return node;
         }
 
-        public static ConfigNode ToConfigNode(this ProgramFile programFile, string nodeName)
+        public static ConfigNode ToConfigNode(this HarddiskDirectory directory, string nodeName)
+        {
+            ConfigNode node = new ConfigNode(nodeName);
+            node.AddValue(DIRNAME_VALUE_STRING, directory.Name);
+
+            foreach (VolumeItem item in directory)
+            {
+                if (item is HarddiskDirectory)
+                {
+                    HarddiskDirectory dir = item as HarddiskDirectory;
+                    node.AddNode(dir.ToConfigNode("directory"));
+                }
+
+                if (item is HarddiskFile)
+                {
+                    HarddiskFile file = item as HarddiskFile;
+                    node.AddNode(file.ToConfigNode("file"));
+                }
+            }
+
+            return node;
+        }
+
+        public static ConfigNode ToConfigNode(this HarddiskFile harddiskFile, string nodeName)
         {
             var node = new ConfigNode(nodeName);
-            node.AddValue(FILENAME_VALUE_STRING, programFile.Filename);
+            node.AddValue(FILENAME_VALUE_STRING, harddiskFile.Name);
 
-            if (programFile.Category == FileCategory.KSM)
+            node.AddValue("line", Encode(harddiskFile.Content, harddiskFile.Category));
+
+            return node;
+        }
+
+        private static string Encode(byte[] input, FileCategory category)
+        {
+            if (category == FileCategory.KSM)
             {
-                node.AddValue("line", EncodeBase64(programFile.BinaryContent));
+                return EncodeBase64(input);
             }
             else
             {
                 if (Config.Instance.UseCompressedPersistence)
                 {
-                    node.AddValue("line", EncodeBase64(programFile.StringContent));
+                    return EncodeBase64(input);
                 }
                 else
                 {
-                    node.AddValue("line", PersistenceUtilities.EncodeLine(programFile.StringContent));
+                    return PersistenceUtilities.EncodeLine(input);
                 }
             }
-            return node;
         }
 
-        private static string EncodeBase64(string input)
+        private static byte[] Decode(string input)
         {
-            return EncodeBase64(Encoding.ASCII.GetBytes(input));
+            try
+            {
+                // base64 encoding
+
+                // Fix for issue #429.  See comment up in EncodeBase64() method above for an explanation:
+                string massagedInput = input.Replace(',','/');
+
+                return DecodeBase64ToBinary(massagedInput);
+            }
+            catch (FormatException)
+            {
+                // standard encoding
+                return PersistenceUtilities.DecodeLine(input);
+            }
+            /*
+            catch (Exception e)
+            {
+                SafeHouse.Logger.Log(string.Format("Exception decoding: {0} | {1}", e, e.Message));
+            }*/
         }
 
         private static string EncodeBase64(byte[] input)
@@ -107,42 +168,7 @@ namespace kOS.Persistence
             }
         }
 
-        private static void Decode(ProgramFile programFile, string input)
-        {
-            try
-            {
-                string decodedString;
-                try
-                {
-                    // base64 encoding
 
-                    // Fix for issue #429.  See comment up in EncodeBase64() method above for an explanation:
-                    string massagedInput = input.Replace(',','/');
-                    
-                    byte[] decodedBuffer = DecodeBase64ToBinary(massagedInput);
-                    FileCategory whatKind = PersistenceUtilities.IdentifyCategory(decodedBuffer);
-                    if (whatKind == FileCategory.ASCII || whatKind == FileCategory.KERBOSCRIPT)
-                    {
-                        decodedString = Encoding.ASCII.GetString(decodedBuffer);
-                        programFile.StringContent = decodedString;
-                    }
-                    else
-                    {
-                        programFile.BinaryContent = decodedBuffer;
-                    }
-                }
-                catch (FormatException)
-                {
-                    // standard encoding
-                    decodedString = PersistenceUtilities.DecodeLine(input);
-                    programFile.StringContent = decodedString;
-                }
-            }
-            catch (Exception e)
-            {
-                SafeHouse.Logger.Log(string.Format("Exception decoding: {0} | {1}", e, e.Message));
-            }
-        }
 
         public static bool CheckRange(this Volume volume, Vessel vessel)
         {

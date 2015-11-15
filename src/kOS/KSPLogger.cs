@@ -5,6 +5,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using kOS.Safe.Compilation;
 using kOS.Safe.Persistence;
+using kOS.Safe;
+using kOS.Screen;
 
 namespace kOS
 {
@@ -105,21 +107,21 @@ namespace kOS
                     if (index > 0)
                     {
                         Opcode prevOpcode = Shared.Cpu.GetOpcodeAt(trace[index-1]);
-                        if (prevOpcode.SourceName == thisOpcode.SourceName &&
+                        if (prevOpcode.SourcePath.Equals(thisOpcode.SourcePath) &&
                             prevOpcode.SourceLine == thisOpcode.SourceLine)
                         {
                             continue;
                         }
                     }
 
-                    string textLine = (thisOpcode is OpcodeEOF) ? "<<--EOF" : GetSourceLine(thisOpcode.SourceName, thisOpcode.SourceLine);
+                    string textLine = (thisOpcode is OpcodeEOF) ? "<<--EOF" : GetSourceLine(thisOpcode.SourcePath, thisOpcode.SourceLine);
                     
                     if (msg.Length == 0)
                         msg += "At ";
                     else
                         msg += "Called from ";
                     
-                    msg += (thisOpcode is OpcodeEOF) ? "interpreter" : BuildLocationString(thisOpcode.SourceName, thisOpcode.SourceLine);
+                    msg += (thisOpcode is OpcodeEOF) ? "interpreter" : BuildLocationString(thisOpcode.SourcePath, thisOpcode.SourceLine);
                     msg += "\n" + textLine + "\n";
 
                     int useColumn = (thisOpcode is OpcodeEOF) ? 1 : thisOpcode.SourceColumn;
@@ -141,7 +143,7 @@ namespace kOS
             }
         }
         
-        private string BuildLocationString(string source, int line)
+        private string BuildLocationString(GlobalPath path, int line)
         {
             if (line < 0)
             {
@@ -150,24 +152,20 @@ namespace kOS
                 // to recalculate LOCK THROTTLE and LOCK STEERING each time there's an Update).
                 return "(kOS built-in Update)";
             }
-            if (string.IsNullOrEmpty(source))
+            if (path == null || path == GlobalPath.EMPTY)
             {
                 return "<<probably internal kOS C# error>>";
             }
 
-            string[] splitParts = source.Split('/');
-
-            if (splitParts.Length <= 1)
-                return string.Format("{0}, line {1}", source, line);
-            if (source == "interpreter history")
+            if (path.VolumeId.Equals("interpreter history"))
                 return string.Format("interpreter line {0}", line);
-            return string.Format("{0} on {1}, line {2}", splitParts[1], splitParts[0], line);
+            return string.Format("{0}, line {2}", path, line);
         }
         
-        private string GetSourceLine(string filePath, int line)
+        private string GetSourceLine(GlobalPath path, int line)
         {
             string returnVal = "(Can't show source line)";
-            if (line < 0 && string.IsNullOrEmpty(filePath))
+            if (line < 0 && path == GlobalPath.EMPTY)
             {
                 // Special exception - if line number is negative then this isn't from any
                 // line of user's code but from the system itself (like the triggers the compiler builds
@@ -175,42 +173,23 @@ namespace kOS
                 return "<<System Built-In Flight Control Updater>>";
             }
 
-            if (string.IsNullOrEmpty(filePath))
+            if (path == GlobalPath.EMPTY)
             {
                 return "<<Probably internal error within kOS C# code>>";
             }
-            string[] pathParts = filePath.Split('/');
-            string fileName = pathParts.Last();
-            Volume vol;
-            if (pathParts.Length > 1)
-            {
-                string volName = pathParts.First();
-                if (Regex.IsMatch(volName, @"^\d+$"))
-                {
-                    // If the volume is a number, then get the volume by integer id.
-                    int volNum;
-                    int.TryParse(volName, out volNum);
-                    vol = Shared.VolumeMgr.GetVolume(volNum);
-                }
-                else
-                {
-                    // If the volume is not a number, then get the volume by name string.
-                    vol = Shared.VolumeMgr.GetVolume(volName);
-                }
-            }
-            else
-                vol = Shared.VolumeMgr.CurrentVolume;
+
+            Volume vol = Shared.VolumeMgr.FromPath(path);
             
-            if (fileName == "interpreter history")
+            if (path == Interpreter.InterpreterHistory)
                 return Shared.Interpreter.GetCommandHistoryAbsolute(line);
             
-            ProgramFile file = vol.GetByName(fileName);
-            if (file!=null)
+            VolumeFile file = vol.Get(path) as VolumeFile;
+            if (file != null)
             {
                 if (file.Category == FileCategory.KSM)
                     return  "<<machine language file: can't show source line>>";
 
-                string[] splitLines = file.StringContent.Split('\n');
+                string[] splitLines = file.ReadAsString().Split('\n');
                 if (splitLines.Length >= line)
                 {
                     returnVal = splitLines[line-1];

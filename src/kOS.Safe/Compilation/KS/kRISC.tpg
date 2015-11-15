@@ -50,8 +50,8 @@ RETURN       -> @"(?i)\breturn\b";
 SWITCH       -> @"(?i)\bswitch\b";
 COPY         -> @"(?i)\bcopy\b";
 FROM         -> @"(?i)\bfrom\b";
-RENAME       -> @"(?i)\brename\b";
-VOLUME       -> @"(?i)\bvolume\b";
+MOVE         -> @"(?i)\bmove\b";
+CD           -> @"(?i)\bcd\b";
 FILE         -> @"(?i)\bfile\b";
 DELETE       -> @"(?i)\bdelete\b";
 EDIT         -> @"(?i)\bedit\b";
@@ -115,7 +115,8 @@ instruction -> set_stmt |
                return_stmt |
                switch_stmt |
                copy_stmt |
-               rename_stmt |
+               move_stmt |
+               cd_stmt |
                delete_stmt |
                edit_stmt |
                run_stmt |
@@ -181,9 +182,10 @@ declare_stmt   -> // declare|global|local are all optional for function and para
                   );
 return_stmt    -> RETURN expr? EOI;
 switch_stmt    -> SWITCH TO expr EOI;
-copy_stmt      -> COPY expr (FROM | TO) expr EOI;
-rename_stmt    -> RENAME (VOLUME | FILE)? expr TO expr EOI;
-delete_stmt    -> DELETE expr (FROM expr)? EOI;
+cd_stmt        -> CD expr? EOI;
+copy_stmt      -> COPY expr TO expr EOI;
+move_stmt      -> MOVE expr TO expr EOI;
+delete_stmt    -> DELETE expr EOI;
 edit_stmt      -> EDIT expr EOI;
 run_stmt       -> RUN FILEIDENT (BRACKETOPEN arglist BRACKETCLOSE)? (ON expr)? EOI;
 compile_stmt   -> COMPILE expr (TO expr)? EOI;

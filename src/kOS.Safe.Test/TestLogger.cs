@@ -16,7 +16,7 @@ namespace kOS.Safe.Test
 
         public void SuperVerbose(string s)
         {
-            throw new NotImplementedException();
+            Console.WriteLine(s);
         }
 
         public void LogWarning(string s)

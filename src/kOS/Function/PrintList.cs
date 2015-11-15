@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using kOS.Module;
+using kOS.Safe;
+using System.Linq;
 
 namespace kOS.Function
 {
@@ -87,15 +89,22 @@ namespace kOS.Function
                 Volume volume = shared.VolumeMgr.CurrentVolume;
                 if (volume != null)
                 {
-                    list.Title = "Volume " + shared.VolumeMgr.GetVolumeBestIdentifier(volume);
+                    list.Title = shared.VolumeMgr.CurrentDirectory.Path.ToString();
 
-                    foreach (FileInfo info in volume.GetFileList())
+                    IOrderedEnumerable<VolumeItem> items = shared.VolumeMgr.CurrentDirectory.List().OrderBy(i => i.Name);
+
+                    foreach (VolumeDirectory info in items.OfType<VolumeDirectory>())
+                    {
+                        list.AddItem(info.Name, "<DIR>");
+                    }
+
+                    foreach (VolumeFile info in items.OfType<VolumeFile>())
                     {
                         list.AddItem(info.Name, info.Size);
                     }
 
-                    int freeSpace = volume.GetFreeSpace();
-                    list.Footer = "Free space remaining: " + (freeSpace > -1 ? freeSpace.ToString() : " infinite");
+                    int freeSpace = volume.FreeSpace;
+                    list.Footer = "Free space remaining: " + (freeSpace != Volume.INFINITE_CAPACITY ? freeSpace.ToString() : " infinite");
                 }
             }
 

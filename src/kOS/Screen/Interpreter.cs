@@ -5,11 +5,15 @@ using kOS.Execution;
 using kOS.Safe.Compilation;
 using kOS.Safe.Screen;
 using kOS.Safe.UserIO;
+using kOS.Safe;
+using kOS.Safe.Persistence;
 
 namespace kOS.Screen
 {
     public class Interpreter : TextEditor, IInterpreter
     {
+        public static GlobalPath InterpreterHistory = GlobalPath.FromString("interpreterhistory:");
+
         private readonly List<string> commandHistory = new List<string>();
         private int commandHistoryIndex;
         private bool locked;
@@ -128,7 +132,7 @@ namespace kOS.Screen
             try
             {
                 CompilerOptions options = new CompilerOptions { LoadProgramsInSameAddressSpace = false, FuncManager = Shared.FunctionManager };
-                List<CodePart> commandParts = Shared.ScriptHandler.Compile("interpreter history", commandHistoryIndex, commandText, "interpreter", options);
+                List<CodePart> commandParts = Shared.ScriptHandler.Compile(InterpreterHistory, commandHistoryIndex, commandText, "interpreter", options);
                 if (commandParts == null) return;
 
                 var interpreterContext = ((CPU)Shared.Cpu).GetInterpreterContext();

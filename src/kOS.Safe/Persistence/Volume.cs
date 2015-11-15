@@ -6,6 +6,7 @@ using kOS.Safe.Encapsulation;
 using kOS.Safe.Encapsulation.Suffixes;
 using kOS.Safe.Utilities;
 using FileInfo = kOS.Safe.Encapsulation.FileInfo;
+using kOS.Safe.Exceptions;
 
 namespace kOS.Safe.Persistence
 {
@@ -14,31 +15,109 @@ namespace kOS.Safe.Persistence
         public const string TEXT_EXTENSION = "txt";
         public const string KERBOSCRIPT_EXTENSION = "ks";
         public const string KOS_MACHINELANGUAGE_EXTENSION = "ksm";
-        protected const int BASE_CAPACITY = 10000;
-        protected const float BASE_POWER = 0.04f;
-        private readonly Dictionary<string, ProgramFile> files;
 
-        public Dictionary<string, ProgramFile> FileList
-        {
-            get
-            {
-                SafeHouse.Logger.SuperVerbose("Volume: Get-FileList: " + files.Count);
-                return files.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        public const int INFINITE_CAPACITY = -1;
+        protected const float BASE_POWER = 0.04f;
+
+        public abstract VolumeDirectory Root { get; }
+
+        private string name;
+
+        public string Name {
+            get {
+                return name;
+            }
+            set { 
+                if (Renameable) {
+                    name = value;
+                } else {
+                    throw new KOSException("Volume name can't be changed");
+                }
             }
         }
-        public string Name { get; set; }
-        public int Capacity { get; protected set; }
-        public bool Renameable { get; protected set; }
+
+        protected void InitializeName(string name)
+        {
+            this.name = name;
+        }
+
+        public abstract int Capacity { get; }
+        public int FreeSpace {
+            get {
+                return Capacity == Volume.INFINITE_CAPACITY ? Volume.INFINITE_CAPACITY : Capacity - Root.Size;
+            }
+        }
+        public abstract bool Renameable { get; }
+        public abstract float RequiredPower { get; }
 
         protected Volume()
         {
-            SafeHouse.Logger.SuperVerbose("Volume: CONSTRUCT");
-            Renameable = true;
-            Capacity = -1;
-            Name = "";
-            files = new Dictionary<string, ProgramFile>(StringComparer.OrdinalIgnoreCase);
             InitializeVolumeSuffixes();
         }
+
+        public abstract VolumeItem Get(VolumePath path);
+        public abstract VolumeDirectory CreateDirectory(VolumePath path);
+        public abstract VolumeFile CreateFile(VolumePath path);
+
+        public VolumeDirectory GetOrCreateDirectory(VolumePath path)
+        {
+            VolumeDirectory directory = Get(path) as VolumeDirectory;
+
+            if (directory == null)
+            {
+                directory = CreateDirectory(path);
+            }
+
+            return directory;
+        }
+
+        public VolumeFile GetOrCreateFile(VolumePath path)
+        {
+            VolumeFile file = Get(path) as VolumeFile;
+
+            if (file == null)
+            {
+                file = CreateFile(path);
+            }
+
+            return file;
+        }
+
+        public override string ToString()
+        {
+            return "Volume(" + Name + ", " + Capacity + ")";
+        }
+
+        private void InitializeVolumeSuffixes()
+        {
+            AddSuffix("FREESPACE" , new Suffix<float>(() => FreeSpace));
+            AddSuffix("CAPACITY" , new Suffix<float>(() => Capacity));
+            AddSuffix("NAME" , new SetSuffix<string>(() => Name, SetName));
+            AddSuffix("RENAMEABLE" , new Suffix<bool>(() => Renameable));
+            AddSuffix("FILES" , new Suffix<ListValue<VolumeItem>>(() => new ListValue<VolumeItem>(Root.List())));
+            AddSuffix("POWERREQUIREMENT" , new Suffix<float>(() => RequiredPower));
+        }
+
+        private void SetName(string name)
+        {
+            this.Name = name;
+        }
+
+        public bool IsRoomFor(byte[] content)
+        {
+            return Capacity == INFINITE_CAPACITY || content.Length <= FreeSpace;
+        }
+
+        /*public abstract Dictionary<string, VolumeItem> ItemList
+        {
+            get
+            {
+                SafeHouse.Logger.SuperVerbose("Volume: Get-ItemList: " + items.Count);
+                return items.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+            }
+        }*/
+        /*
+
 
         /// <summary>
         /// Get a file given its name
@@ -46,19 +125,19 @@ namespace kOS.Safe.Persistence
         /// <param name="name">filename to get.  if it has no filename extension, one will be guessed at, ".ks" usually.</param>
         /// <param name="ksmDefault">in the scenario where there is no filename extension, do we prefer the .ksm over the .ks?  The default is to prefer .ks</param>
         /// <returns>the file</returns>
-        public virtual ProgramFile GetByName(string name, bool ksmDefault = false )
+        public virtual VolumeFile GetByPath(VolumePath path, bool ksmDefault = false )
         {
-            SafeHouse.Logger.SuperVerbose("Volume: GetByName: " + name);
+            SafeHouse.Logger.SuperVerbose("Volume: GetByPath: " + path);
             var fullPath = FileSearch(name, ksmDefault);
             if (fullPath == null)
             {
                 return null;
             }
 
-            return files.ContainsKey(fullPath.Filename) ? files[fullPath.Filename] : null;
+            return files.ContainsKey(fullPath.Name) ? files[fullPath.Filename] : null;
         }
 
-        public virtual bool DeleteByName(string name)
+        public virtual bool DeleteByPath(VolumePath path)
         {
             SafeHouse.Logger.SuperVerbose("Volume: DeleteByName: " + name);
 
@@ -78,7 +157,7 @@ namespace kOS.Safe.Persistence
         public virtual bool RenameFile(string name, string newName)
         {
             SafeHouse.Logger.SuperVerbose("Volume: RenameFile: From: " + name + " To: " + newName);
-            ProgramFile file = GetByName(name);
+            VolumeFile file = GetByName(name);
             if (file != null)
             {
                 DeleteByName(name);
@@ -92,7 +171,7 @@ namespace kOS.Safe.Persistence
         public virtual bool AppendToFile(string name, string textToAppend)
         {
             SafeHouse.Logger.SuperVerbose("Volume: AppendToFile: " + name);
-            ProgramFile file = GetByName(name) ?? new ProgramFile(name);
+            VolumeFile file = GetByName(name) ?? new VolumeFile(name);
 
             if (file.StringContent.Length > 0 && !file.StringContent.EndsWith("\n"))
             {
@@ -106,14 +185,14 @@ namespace kOS.Safe.Persistence
         public virtual bool AppendToFile(string name, byte[] bytesToAppend)
         {
             SafeHouse.Logger.SuperVerbose("Volume: AppendToFile: " + name);
-            ProgramFile file = GetByName(name) ?? new ProgramFile(name);
+            VolumeFile file = GetByName(name) ?? new VolumeFile(name);
 
             file.BinaryContent = new byte[file.BinaryContent.Length + bytesToAppend.Length];
             Array.Copy(bytesToAppend, 0, file.BinaryContent, file.BinaryContent.Length, bytesToAppend.Length);
             return SaveFile(file);
         }
 
-        public virtual void Add(ProgramFile file, bool withReplacement = false)
+        public virtual void Add(VolumeFile file, bool withReplacement = false)
         {
             SafeHouse.Logger.SuperVerbose("Volume: Add: " + file.Filename);
             if (withReplacement)
@@ -126,7 +205,7 @@ namespace kOS.Safe.Persistence
             }
         }
 
-        public virtual bool SaveFile(ProgramFile file)
+        public virtual bool SaveFile(VolumeFile file)
         {
             SafeHouse.Logger.SuperVerbose("Volume: SaveFile: " + file.Filename);
             
@@ -136,16 +215,11 @@ namespace kOS.Safe.Persistence
         
         public virtual bool SaveObjectFile(string fileNameOut, List<CodePart> parts)
         {
-            var newFile = new ProgramFile(fileNameOut) {BinaryContent = CompiledObject.Pack(parts)};
+            var newFile = new VolumeFile(fileNameOut) {BinaryContent = CompiledObject.Pack(parts)};
             return SaveFile(newFile);
         }
 
-        public List<CodePart> LoadObjectFile(string filePath, string prefix, byte[] content)
-        {
-            SafeHouse.Logger.SuperVerbose("Volume: LoadObjectFile: " + filePath);
-            List<CodePart> parts = CompiledObject.UnPack(filePath, prefix, content);
-            return parts;
-        }
+
 
         protected int GetUsedSpace()
         {
@@ -153,7 +227,7 @@ namespace kOS.Safe.Persistence
         }
 
         public virtual int GetFreeSpace() { return -1; }
-        public virtual bool IsRoomFor(ProgramFile newFile) { return true; }
+        public virtual bool IsRoomFor(VolumeFile newFile) { return true; }
 
         public virtual List<FileInfo> GetFileList()
         {
@@ -171,29 +245,16 @@ namespace kOS.Safe.Persistence
             return powerRequired;
         }
 
-        public override string ToString()
-        {
-            return "Volume( " + Name + ", " + Capacity + ")";
-        }
 
-        private void InitializeVolumeSuffixes()
-        {
-            AddSuffix("FREESPACE" , new Suffix<float>(() => GetFreeSpace()));
-            AddSuffix("CAPACITY" , new Suffix<float>(() => Capacity));
-            AddSuffix("NAME" , new Suffix<string>(() => Name));
-            AddSuffix("RENAMEABLE" , new Suffix<bool>(() => Renameable));
-            AddSuffix("FILES" , new Suffix<ListValue<FileInfo>>(() => new ListValue<FileInfo>(GetFileList())));
-            AddSuffix("POWERREQUIREMENT" , new Suffix<float>(RequiredPower));
-        }
 
-        private ProgramFile FileSearch(string name, bool ksmDefault = false)
+        private VolumeFile FileSearch(string name, bool ksmDefault = false)
         {
             SafeHouse.Logger.SuperVerbose("Volume: FileSearch: " + files.Count);
             var kerboscriptFilename = PersistenceUtilities.CookedFilename(name, KERBOSCRIPT_EXTENSION, true);
             var kosMlFilename = PersistenceUtilities.CookedFilename(name, KOS_MACHINELANGUAGE_EXTENSION, true);
 
-            ProgramFile kerboscriptFile;
-            ProgramFile kosMlFile;
+            VolumeFile kerboscriptFile;
+            VolumeFile kosMlFile;
             bool kerboscriptFileExists = files.TryGetValue(kerboscriptFilename, out kerboscriptFile);
             bool kosMlFileExists = files.TryGetValue(kosMlFilename, out kosMlFile);
             if (kerboscriptFileExists && kosMlFileExists)
@@ -215,5 +276,6 @@ namespace kOS.Safe.Persistence
         {
             return String.CompareOrdinal(a.Name, b.Name);
         }
-    }    
+        */
+    }
 }

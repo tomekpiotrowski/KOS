@@ -27,7 +27,7 @@ namespace kOS.Safe.Persistence
         /// and it will call scripts just ASCII, but this<br/>
         /// may change later and be used.
         /// </summary>
-        KERBOSCRIPT,
+        //KERBOSCRIPT,
                       
         /// <summary>
         /// The ML compiled and packed file that came from a KerboScript.

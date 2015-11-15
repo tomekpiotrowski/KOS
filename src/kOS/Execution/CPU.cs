@@ -11,6 +11,8 @@ using kOS.Safe.Execution;
 using kOS.Safe.Utilities;
 using kOS.Suffixed;
 using Debug = kOS.Safe.Utilities.Debug;
+using kOS.Safe;
+using kOS.Safe.Persistence;
 
 namespace kOS.Execution
 {
@@ -116,13 +118,13 @@ namespace kOS.Execution
             else
             {
                 string filename = shared.Processor.BootFilename;
+                GlobalPath filePath = GlobalPath.FromVolumePath(VolumePath.FromString("/" + filename), shared.VolumeMgr.CurrentVolume);
                 // Check to make sure the boot file name is valid, and then that the boot file exists.
                 if (String.IsNullOrEmpty(filename)) { SafeHouse.Logger.Log("Boot file name is empty, skipping boot script"); }
                 else if (filename.Equals("None", StringComparison.InvariantCultureIgnoreCase)) { SafeHouse.Logger.Log("Boot file name is \"None\", skipping boot script"); }
-                else if (shared.VolumeMgr.CurrentVolume.GetByName(filename) == null) { SafeHouse.Logger.Log(String.Format("Boot file \"{0}\" is missing, skipping boot script", filename)); }
+                else if (shared.VolumeMgr.CurrentVolume.Get(filePath) as VolumeFile == null) { SafeHouse.Logger.Log(String.Format("Boot file \"{0}\" is missing, skipping boot script", filename)); }
                 else
                 {
-                    string filePath = shared.VolumeMgr.GetVolumeRawIdentifier(shared.VolumeMgr.CurrentVolume) + "/" + filename;
                     shared.ScriptHandler.ClearContext("program");
                     var programContext = ((CPU)shared.Cpu).SwitchToProgramContext();
                     programContext.Silent = true;
@@ -1096,10 +1098,10 @@ namespace kOS.Execution
         {
             if (currentContext.InstructionPointer >= (currentContext.Program.Count - 1)) return;
 
-            string currentSourceName = currentContext.Program[currentContext.InstructionPointer].SourceName;
+            GlobalPath currentSourcePath = currentContext.Program[currentContext.InstructionPointer].SourcePath;
 
             while (currentContext.InstructionPointer < currentContext.Program.Count &&
-                   currentContext.Program[currentContext.InstructionPointer].SourceName == currentSourceName)
+                currentContext.Program[currentContext.InstructionPointer].SourcePath.Equals(currentSourcePath))
             {
                 currentContext.InstructionPointer++;
             }
