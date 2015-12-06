@@ -58,7 +58,7 @@ namespace kOS.Safe.Encapsulation
             set { collection[index] = value; }
         }
             
-        public override void LoadDump(IDictionary<object, object> dump)
+        public override void LoadDump(Dump dump)
         {
             collection.Clear();
 

@@ -200,7 +200,7 @@ namespace kOS.Safe.Test.Collections
             Assert.AreEqual(0, ((NoArgsSuffix<int>.Del<int>)copyList.GetSuffix("LENGTH")).Invoke());
         }
 
-        private object InvokeDelegate(IDumper list, string suffixName, params object[] parameters)
+        private object InvokeDelegate(ListValue list, string suffixName, params object[] parameters)
         {
             var lengthObj = list.GetSuffix(suffixName);
             Assert.IsNotNull(lengthObj);

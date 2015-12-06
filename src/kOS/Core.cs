@@ -8,6 +8,7 @@ using kOS.Suffixed.PartModuleField;
 using kOS.Utilities;
 using System;
 using System.Linq;
+using kOS.Communication;
 
 namespace kOS
 {
@@ -32,6 +33,8 @@ namespace kOS
             AddSuffix("VESSEL", new Suffix<VesselTarget>(() => new VesselTarget(shared.KSPPart.vessel, shared)));
             AddSuffix("ELEMENT", new Suffix<ElementValue>(GetEelement));
             AddSuffix("CURRENTVOLUME", new Suffix<Volume>(GetCurrentVolume, "The currently selected volume"));
+            AddSuffix("MESSAGES", new NoArgsSuffix<MessageQueueStructure>(() => new MessageQueueStructure(processor.Messages, shared),
+                "This processor's message queue"));
         }
 
         private ElementValue GetEelement()

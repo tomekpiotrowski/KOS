@@ -209,7 +209,7 @@ namespace kOS.Function
                 throw new KOSException("This type is not serializable");
             }
 
-            string serializedString = new SerializationMgr(shared).Serialize(serialized, JSONFormatter.Instance);
+            string serializedString = new SerializationMgr(shared).Serialize(serialized, ConfigNodeFormatter.Instance);
 
             ProgramFile programFile = new ProgramFile(fileName);
             programFile.StringContent = serializedString;
@@ -236,7 +236,7 @@ namespace kOS.Function
                 throw new KOSException("File does not exist: " + fileName);
             }
 
-            object read = new SerializationMgr(shared).Deserialize(programFile.StringContent, JSONFormatter.Instance);
+            object read = new SerializationMgr(shared).Deserialize(programFile.StringContent, ConfigNodeFormatter.Instance);
 
             ReturnValue = read;
         }

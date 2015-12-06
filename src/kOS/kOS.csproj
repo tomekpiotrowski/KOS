@@ -120,9 +120,6 @@
     <Compile Include="Suffixed\RgbaColor.cs" />
     <Compile Include="Suffixed\Config.cs" />
     <Compile Include="Function\PrintList.cs" />
-    <Compile Include="InterProcessor\InterProcCommand.cs" />
-    <Compile Include="InterProcessor\ProcessorManager.cs" />
-    <Compile Include="InterProcessor\RunCommand.cs" />
     <Compile Include="Core.cs" />
     <Compile Include="Suffixed\ElementValue.cs" />
     <Compile Include="Suffixed\FlightControl.cs" />
@@ -184,8 +181,21 @@
     <Compile Include="Suffixed\CrewMember.cs" />
     <Compile Include="Suffixed\PartModuleField\ScienceExperimentFields.cs" />
     <Compile Include="Suffixed\PartModuleField\kOSProcessorFields.cs" />
+    <Compile Include="Communication\ProcessorManager.cs" />
+    <Compile Include="Communication\InterVesselManager.cs" />
+    <Compile Include="Serialization\ConfigNodeFormatter.cs" />
+    <Compile Include="Communication\ConnectivityManager.cs" />
+    <Compile Include="Communication\StockConnectivityManager.cs" />
+    <Compile Include="AddOns\RemoteTech\RemoteTechConnectivityManager.cs" />
+    <Compile Include="Suffixed\Connection.cs" />
     <Compile Include="Serialization\SerializationMgr.cs" />
     <Compile Include="Serialization\IDumperWithSharedObjects.cs" />
+    <Compile Include="Communication\MessageQueue.cs" />
+    <Compile Include="Communication\MessageQueueStructure.cs" />
+    <Compile Include="Communication\InterProcCommand.cs" />
+    <Compile Include="Communication\RunCommand.cs" />
+    <Compile Include="Communication\MessageStructure.cs" />
+    <Compile Include="Communication\Message.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\kOS.Safe\kOS.Safe.csproj">

@@ -3,7 +3,7 @@ using kOS.Binding;
 using kOS.Execution;
 using kOS.Factories;
 using kOS.Function;
-using kOS.InterProcessor;
+using kOS.Communication;
 using kOS.Persistence;
 using kOS.Safe;
 using kOS.Safe.Compilation;
@@ -21,6 +21,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using FileInfo = kOS.Safe.Encapsulation.FileInfo;
+using kOS.Safe.Encapsulation;
+using kOS.Serialization;
 
 namespace kOS.Module
 {
@@ -29,6 +31,8 @@ namespace kOS.Module
         public ProcessorModes ProcessorMode = ProcessorModes.READY;
 
         public Harddisk HardDisk { get; private set; }
+
+        public MessageQueue Messages { get; private set; }
 
         public string Tag
         {
@@ -43,6 +47,7 @@ namespace kOS.Module
         private SharedObjects shared;
         private static readonly List<kOSProcessor> allMyInstances = new List<kOSProcessor>();
         private bool firstUpdate = true;
+
 
         //640K ought to be enough for anybody -sic
         private const int PROCESSOR_HARD_CAP = 655360;
@@ -282,6 +287,7 @@ namespace kOS.Module
             shared.ScriptHandler = new KSScript();
             shared.Logger = new KSPLogger(shared);
             shared.VolumeMgr = shared.Factory.CreateVolumeManager(shared);
+            shared.ConnectivityMgr = shared.Factory.CreateConnectivityManager();
             shared.ProcessorMgr = new ProcessorManager();
             shared.FunctionManager = new FunctionManager(shared);
             shared.TransferManager = new TransferManager(shared);
@@ -297,6 +303,8 @@ namespace kOS.Module
             // initialize archive
             var archive = shared.Factory.CreateArchive();
             shared.VolumeMgr.Add(archive);
+
+            Messages = new MessageQueue();
 
             // initialize harddisk
             if (HardDisk == null)
@@ -685,6 +693,12 @@ namespace kOS.Module
         {
             get { return bootFile; }
             set { bootFile = value; }
+        }
+
+        public void Send(object content)
+        {
+            kOS.Suffixed.TimeSpan sentAt = new kOS.Suffixed.TimeSpan(Planetarium.GetUniversalTime());
+            Messages.Push(content, sentAt, sentAt, new VesselTarget(shared));
         }
     }
 }

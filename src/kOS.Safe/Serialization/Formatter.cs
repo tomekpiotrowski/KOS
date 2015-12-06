@@ -5,8 +5,8 @@ namespace kOS.Safe.Serialization
 {
     public interface Formatter
     {
-        string Write(IDictionary<object, object> value);
-        IDictionary<object, object> Read(string input);
+        string Write(Dump value);
+        Dump Read(string input);
     }
 }
 

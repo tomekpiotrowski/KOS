@@ -231,16 +231,16 @@ namespace kOS.Safe.Encapsulation
             return new SafeSerializationMgr().ToString(this);
         }
 
-        public IDictionary<object, object> Dump()
+        public Dump Dump()
         {
-            DictionaryWithHeader result = new DictionaryWithHeader((Dictionary<object, object>)internalDictionary);
+            DumpWithHeader result = new DumpWithHeader(internalDictionary);
 
             result.Header = "LEXICON of " + internalDictionary.Count + " items:";
 
             return result;
         }
 
-        public void LoadDump(IDictionary<object, object> dump)
+        public void LoadDump(Dump dump)
         {
             internalDictionary.Clear();
 

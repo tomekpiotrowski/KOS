@@ -112,7 +112,7 @@ namespace kOS.Safe.Test.Collections
             Assert.IsFalse((bool)InvokeDelegate(stack, "CONTAINS", thirdObject));
         }
 
-        private object InvokeDelegate(IDumper stack, string suffixName, params object[] parameters)
+        private object InvokeDelegate(StackValue stack, string suffixName, params object[] parameters)
         {
             var lengthObj = stack.GetSuffix(suffixName);
             Assert.IsNotNull(lengthObj);

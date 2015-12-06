@@ -22,19 +22,19 @@ namespace kOS.Safe.Serialization
 
         }
 
-        public string Write(IDictionary<object, object> value)
+        public string Write(Dump value)
         {
             string header = "";
 
-            if (value is DictionaryWithHeader)
+            if (value is DumpWithHeader)
             {
-                header = (value as DictionaryWithHeader).Header + Environment.NewLine;
+                header = (value as DumpWithHeader).Header + Environment.NewLine;
             }
 
             return header + WriteIndented(value);
         }
 
-        public string WriteIndented(IDictionary<object, object> collection, int level = 0)
+        public string WriteIndented(Dump collection, int level = 0)
         {
             var result = new List<string>();
 
@@ -48,12 +48,12 @@ namespace kOS.Safe.Serialization
                 {
                     string header = Environment.NewLine;
 
-                    if (value is DictionaryWithHeader)
+                    if (value is DumpWithHeader)
                     {
-                        header = (value as DictionaryWithHeader).Header + Environment.NewLine;
+                        header = (value as DumpWithHeader).Header + Environment.NewLine;
                     }
 
-                    valueString = header + WriteIndented(value as IDictionary<object, object>, level + 1);
+                    valueString = header + WriteIndented(value as Dump, level + 1);
                 } else
                 {
                     valueString = value.ToString();
@@ -72,7 +72,7 @@ namespace kOS.Safe.Serialization
             return String.Join(Environment.NewLine, result.ToArray());
         }
 
-        public IDictionary<object, object> Read(string input)
+        public Dump Read(string input)
         {
             throw new NotImplementedException();
         }

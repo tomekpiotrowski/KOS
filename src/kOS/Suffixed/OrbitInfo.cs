@@ -3,6 +3,7 @@ using kOS.Safe.Encapsulation.Suffixes;
 using System;
 using kOS.Serialization;
 using kOS.Safe.Serialization;
+using kOS.Safe;
 
 namespace kOS.Suffixed
 {
@@ -133,9 +134,9 @@ namespace kOS.Suffixed
             shared = sharedObjects;
         }
 
-        public System.Collections.Generic.IDictionary<object, object> Dump()
+        public Dump Dump()
         {
-            DictionaryWithHeader dump = new DictionaryWithHeader();
+            DumpWithHeader dump = new DumpWithHeader();
 
             dump.Header = "ORBIT of " + name;
             dump.Add(DUMP_INCLINATION, orbit.inclination);
@@ -150,7 +151,7 @@ namespace kOS.Suffixed
             return dump;
         }
 
-        public void LoadDump(System.Collections.Generic.IDictionary<object, object> dump)
+        public void LoadDump(Dump dump)
         {
             name = "<unnamed>";
 

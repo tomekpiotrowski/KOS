@@ -39,7 +39,7 @@ namespace kOS.Safe.Serialization
             }
         }
 
-        public string Write(IDictionary<object, object> value)
+        public string Write(Dump value)
         {
             return SimpleJson.SerializeObject(MakeStringDictionaries(value));
         }
@@ -48,7 +48,7 @@ namespace kOS.Safe.Serialization
         {
             if (read is IDictionary<string, object>)
             {
-                Dictionary<object, object> result = new Dictionary<object, object>();
+                Dump result = new Dump();
 
                 foreach (KeyValuePair<string, object> entry in read as IDictionary<string, object>)
                 {
@@ -62,9 +62,9 @@ namespace kOS.Safe.Serialization
             }
         }
 
-        public IDictionary<object, object> Read(string input)
+        public Dump Read(string input)
         {
-            return (IDictionary<object, object>)Unwrap(SimpleJson.DeserializeObject<Dictionary<string, object>>(input));
+            return (Dump)Unwrap(SimpleJson.DeserializeObject<IDictionary<string, object>>(input));
         }
 
     }

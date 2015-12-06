@@ -10,6 +10,12 @@ namespace kOS.Safe.Serialization
     public class SafeSerializationMgr
     {
         public static string TYPE_KEY = "$type";
+        private static HashSet<string> assemblies = new HashSet<string>();
+
+        public static void AddAssembly(string assembly)
+        {
+            assemblies.Add(assembly);
+        }
 
         public SafeSerializationMgr()
         {
@@ -21,7 +27,7 @@ namespace kOS.Safe.Serialization
             return serialized.GetType().IsPrimitive || serialized is string;
         }
 
-        public IDictionary<object, object> Dump(IDumper dumper, bool includeType = true)
+        public Dump Dump(IDumper dumper, bool includeType = true)
         {
             var dumped = dumper.Dump();
 
@@ -29,12 +35,11 @@ namespace kOS.Safe.Serialization
 
             foreach (object key in keys)
             {
-                if (dumped[key] is IDumper)
+                if (dumped[key] is IDumper) {
+                    dumped[key] = Dump(dumped [key] as IDumper, includeType);
+                } else if (IsValue(dumped[key]) | dumped[key] is Dump)
                 {
-                    dumped[key] = Dump(dumped[key] as IDumper, includeType);
-                } else if (IsValue(dumped[key]))
-                {
-                    dumped[key] = dumped[key];
+                    // Dumps and values are ok
                 } else
                 {
                     throw new KOSException("This type can't be serialized: " + dumped[key].GetType().Name);
@@ -54,9 +59,9 @@ namespace kOS.Safe.Serialization
             return formatter.Write(Dump(serialized, includeType));
         }
 
-        public IDumper CreateFromDump(IDictionary<object, object> dump)
+        public IDumper CreateFromDump(Dump dump)
         {
-            Dictionary<object, object> data = new Dictionary<object, object>();
+            Dump data = new Dump();
             foreach (KeyValuePair<object, object> entry in dump)
             {
                 if (entry.Key.Equals(TYPE_KEY))
@@ -64,48 +69,67 @@ namespace kOS.Safe.Serialization
                     continue;
                 }
 
-                if (entry.Value is IDictionary<object, object>)
+                if (entry.Value is Dump)
                 {
-                    data[entry.Key] = CreateFromDump(entry.Value as IDictionary<object, object>);
+                    data[entry.Key] = CreateFromDump(entry.Value as Dump);
                 } else
                 {
                     data[entry.Key] = entry.Value;
                 }
             }
 
-            string typeFullName = dump[TYPE_KEY] as string;
-
-            if (String.IsNullOrEmpty(typeFullName))
+            if (!dump.ContainsKey(TYPE_KEY))
             {
                 throw new KOSSerializationException("Type information missing");
             }
 
-            return CreateInstance(typeFullName, data);
+            string typeFullName = dump[TYPE_KEY] as string;
+
+            return CreateAndLoad(typeFullName, data);
         }
 
-        public virtual IDumper CreateInstance(string typeFullName, IDictionary<object, object> data)
+        public virtual IDumper CreateAndLoad(string typeFullName, Dump data)
         {
-            var deserializedType = Type.GetType(typeFullName);
-
-            if (deserializedType == null)
-            {
-                throw new KOSSerializationException("Unrecognized type: " + typeFullName);
-            }
-
-            IDumper instance = Activator.CreateInstance(deserializedType) as IDumper;
+            IDumper instance = CreateInstance(typeFullName);
 
             instance.LoadDump(data);
 
             return instance;
         }
 
+        public virtual IDumper CreateInstance(string typeFullName)
+        {
+            var deserializedType = Type.GetType(typeFullName);
+
+
+            if (deserializedType == null)
+            {
+                foreach (string assembly in assemblies)
+                {
+                    deserializedType = Type.GetType(typeFullName + ", " + assembly);
+                    if (deserializedType != null)
+                    {
+                        break;
+                    }
+                }
+
+            }
+
+            if (deserializedType == null)
+            {
+                throw new KOSSerializationException("Unrecognized type: " + typeFullName);
+            }
+
+            return Activator.CreateInstance(deserializedType) as IDumper;
+        }
+
         public object Deserialize(string input, Formatter formatter)
         {
             object serialized = formatter.Read(input);
 
-            if (serialized is IDictionary<object, object>)
+            if (serialized is Dump)
             {
-                return CreateFromDump(serialized as IDictionary<object, object>);
+                return CreateFromDump(serialized as Dump);
             }
 
             return serialized;

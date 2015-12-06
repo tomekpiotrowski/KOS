@@ -109,7 +109,7 @@ namespace kOS.Safe.Test.Collections
             Assert.IsFalse((bool)InvokeDelegate(queue, "CONTAINS", thirdObject));
         }
 
-        private object InvokeDelegate(IDumper queue, string suffixName, params object[] parameters)
+        private object InvokeDelegate(QueueValue queue, string suffixName, params object[] parameters)
         {
             var lengthObj = queue.GetSuffix(suffixName);
             Assert.IsNotNull(lengthObj);

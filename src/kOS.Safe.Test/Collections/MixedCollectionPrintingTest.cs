@@ -53,7 +53,7 @@ namespace kOS.Safe.Test.Collections
             Assert.IsFalse(result.Contains("string[]"));
         }
 
-        private object InvokeDelegate(IDumper list, string suffixName, params object[] parameters)
+        private object InvokeDelegate(Lexicon list, string suffixName, params object[] parameters)
         {
             var lengthObj = list.GetSuffix(suffixName);
             Assert.IsNotNull(lengthObj);

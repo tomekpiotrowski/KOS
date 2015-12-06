@@ -11,8 +11,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using kOS.Communication;
 using kOS.Serialization;
 using kOS.Safe.Serialization;
+using kOS.Safe;
 
 namespace kOS.Suffixed
 {
@@ -451,7 +453,10 @@ namespace kOS.Suffixed
             AddSuffix("LONGITUDE", new Suffix<double>(() => VesselUtils.GetVesselLongitude(Vessel)));
             AddSuffix("ALTITUDE", new Suffix<double>(() => Vessel.altitude));
             AddSuffix("CREW", new NoArgsSuffix<ListValue>(GetCrew));
-            AddSuffix("CREWCAPACITY", new NoArgsSuffix<int> (GetCrewCapacity));
+            AddSuffix("CREWCAPACITY", new NoArgsSuffix<int>(GetCrewCapacity));
+            AddSuffix("CONNECTION", new NoArgsSuffix<Connection>(() => new Connection(Vessel, Shared)));
+            AddSuffix("MESSAGES", new NoArgsSuffix<MessageQueueStructure>(() => GetMessages()));
+
         }
 
         public int GetCrewCapacity() {
@@ -466,6 +471,16 @@ namespace kOS.Suffixed
             }
 
             return crew;
+        }
+
+        public MessageQueueStructure GetMessages()
+        {
+            if (Shared.Vessel.id != Vessel.id)
+            {
+                throw new KOSException("You can only access the message queue of the current vessel");
+            }
+
+            return InterVesselManager.Instance.GetQueue(Shared.Vessel, Shared);
         }
 
         public void ThrowIfNotCPUVessel()
@@ -602,9 +617,9 @@ namespace kOS.Suffixed
             this.Shared = sharedObjects;
         }
 
-        public IDictionary<object, object> Dump()
+        public Dump Dump()
         {
-            DictionaryWithHeader dump = new DictionaryWithHeader();
+            DumpWithHeader dump = new DumpWithHeader();
 
             dump.Header = "VESSEL '" + Vessel.vesselName + "'";
 
@@ -613,7 +628,7 @@ namespace kOS.Suffixed
             return dump;
         }
 
-        public void LoadDump(IDictionary<object, object> dump)
+        public void LoadDump(Dump dump)
         {
             string guid = dump[DUMP_GUID] as string;
 

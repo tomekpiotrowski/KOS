@@ -1,12 +1,14 @@
 ﻿using kOS.Safe.Encapsulation.Suffixes;
 using kOS.Module;
 using kOS.Safe.Persistence;
+using kOS.Safe.Encapsulation;
+using System;
 
 namespace kOS.Suffixed.PartModuleField
 {
     public class kOSProcessorFields : PartModuleFields
     {
-        private readonly kOSProcessor processor;
+        protected readonly kOSProcessor processor;
 
         public kOSProcessorFields(kOSProcessor processor, SharedObjects sharedObj):base(processor, sharedObj)
         {
@@ -22,6 +24,7 @@ namespace kOS.Suffixed.PartModuleField
             AddSuffix("VOLUME", new NoArgsSuffix<Volume>(() => processor.HardDisk, "This processor's hard disk"));
             AddSuffix("TAG", new NoArgsSuffix<string>(() => processor.Tag, "This processor's tag"));
             AddSuffix("BOOTFILENAME", new SetSuffix<string>(GetBootFilename, SetBootFilename, "The name of the processor's boot file."));
+            AddSuffix("SENDMESSAGE", new OneArgsSuffix<object>((content) => processor.Send(content), "Send a message to this processor"));
         }
 
         private string GetBootFilename()

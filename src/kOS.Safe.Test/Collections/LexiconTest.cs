@@ -208,7 +208,7 @@ namespace kOS.Safe.Test.Collections
         public void CopyIsDifferentObject()
         {
             var map = MakeNestedExample();
-            var mapCopy = (IDumper)InvokeDelegate(map, "COPY");
+            var mapCopy = (Lexicon)InvokeDelegate(map, "COPY");
 
 
             var hasKeyFirst = (bool)InvokeDelegate(map, "HASKEY" , "first");
@@ -267,7 +267,7 @@ namespace kOS.Safe.Test.Collections
             Assert.IsTrue(length == 0);
         }
 
-        private IDumper MakeNestedExample()
+        private Lexicon MakeNestedExample()
         {
             const string OUTER_STRING = "String, outer value";
             
@@ -296,7 +296,7 @@ namespace kOS.Safe.Test.Collections
             return map;
         }
 
-        private object InvokeDelegate(IDumper map, string suffixName, params object[] parameters)
+        private object InvokeDelegate(Lexicon map, string suffixName, params object[] parameters)
         {
             var lengthObj = map.GetSuffix(suffixName);
             Assert.IsNotNull(lengthObj);

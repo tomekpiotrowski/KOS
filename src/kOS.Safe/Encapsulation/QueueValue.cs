@@ -34,7 +34,7 @@ namespace kOS.Safe.Encapsulation
             collection.Enqueue(val);
         }
             
-        public override void LoadDump(IDictionary<object, object> dump)
+        public override void LoadDump(Dump dump)
         {
             collection.Clear();
 
