@@ -50,7 +50,7 @@ namespace kOS.Module
 
         private MovingAverage averagePower = new MovingAverage();
 
-        // This is the "constant" byte count used when calculating the EC 
+        // This is the "constant" byte count used when calculating the EC
         // required by the archive volume (which has infinite space).
         // TODO: This corresponds to the existing value and should be adjusted for balance.
         private const int ARCHIVE_EFFECTIVE_BYTES = 50000;
@@ -58,8 +58,12 @@ namespace kOS.Module
         //640K ought to be enough for anybody -sic
         private const int PROCESSOR_HARD_CAP = 655360;
 
+        private const string BootDirectoryName = "boot";
+        private GlobalPath bootDirectoryPath = GlobalPath.FromVolumePath(VolumePath.FromString(BootDirectoryName),
+            Archive.ArchiveName);
+
         [KSPField(isPersistant = true, guiActive = false, guiActiveEditor = true, guiName = "Boot File"), UI_ChooseOption(scene = UI_Scene.Editor)]
-        public string bootFile = "/boot.ks";
+        public string bootFile = "boot.ks";
 
         [KSPField(isPersistant = true, guiName = "kOS Disk Space", guiActive = true)]
         public int diskSpace = 1024;
@@ -107,12 +111,9 @@ namespace kOS.Module
             ProcessorMode = ProcessorModes.READY;
         }
 
-        public VolumePath BootFilePath {
+        public GlobalPath BootFilePath {
             get {
-                return VolumePath.FromString(bootFile);
-            }
-            set {
-                bootFile = value.ToString();
+                return bootDirectoryPath.Combine(bootFile);
             }
         }
 
@@ -210,7 +211,7 @@ namespace kOS.Module
             // For the sake of GetInfo, prorate the EC usage based on the smallest physics frame currently selected
             // Because this is called before the part is set, we need to manually calculate it instead of letting Update handle it.
             double power = diskSpace * ECPerBytePerSecond + defaultAvgInstructions * ECPerInstruction / Time.fixedDeltaTime;
-            string chargeText = (ECPerInstruction == 0) ? 
+            string chargeText = (ECPerInstruction == 0) ?
                 "None.  It's powered by pure magic ... apparently." : // for cheaters who use MM or editing part.cfg, to get rid of it.
                 string.Format("1 per {0} instructions executed", (int)(1 / ECPerInstruction));
             return string.Format(format, diskSpace, chargeText, power, defaultAvgInstructions);
@@ -256,35 +257,41 @@ namespace kOS.Module
 
         public override void OnStart(StartState state)
         {
-            //if in Editor, populate boot script selector, diskSpace selector and etc.
-            if (state == StartState.Editor)
+            try
             {
-                if (baseDiskSpace == 0)
-                    baseDiskSpace = diskSpace;
+                //if in Editor, populate boot script selector, diskSpace selector and etc.
+                if (state == StartState.Editor)
+                {
+                    if (baseDiskSpace == 0)
+                        baseDiskSpace = diskSpace;
 
-                if (System.Math.Abs(baseModuleCost) < 0.000001F)
-                    baseModuleCost = additionalCost;  //remember module cost before tweaks
+                    if (System.Math.Abs(baseModuleCost) < 0.000001F)
+                        baseModuleCost = additionalCost;  //remember module cost before tweaks
                 else
-                    additionalCost = baseModuleCost; //reset module cost and update later in UpdateCostAndMass()
+                        additionalCost = baseModuleCost; //reset module cost and update later in UpdateCostAndMass()
 
-                if (System.Math.Abs(basePartMass) < 0.000001F)
-                    basePartMass = part.mass;  //remember part mass before tweaks
+                    if (System.Math.Abs(basePartMass) < 0.000001F)
+                        basePartMass = part.mass;  //remember part mass before tweaks
                 else
-                    part.mass = basePartMass; //reset part mass to original value and update later in UpdateCostAndMass()
+                        part.mass = basePartMass; //reset part mass to original value and update later in UpdateCostAndMass()
 
-                InitUI();
-            }
+                    InitUI();
+                }
 
-            UpdateCostAndMass();
+                UpdateCostAndMass();
 
-            //Do not start from editor and at KSP first loading
-            if (state == StartState.Editor || state == StartState.None)
+                //Do not start from editor and at KSP first loading
+                if (state == StartState.Editor || state == StartState.None)
+                {
+                    return;
+                }
+
+                SafeHouse.Logger.Log(string.Format("OnStart: {0} {1}", state, ProcessorMode));
+                InitObjects();
+            } catch (Exception e)
             {
-                return;
+                SafeHouse.Logger.LogException(e);
             }
-
-            SafeHouse.Logger.Log(string.Format("OnStart: {0} {1}", state, ProcessorMode));
-            InitObjects();
         }
 
         private void InitUI()
@@ -295,19 +302,12 @@ namespace kOS.Module
 
             var bootFiles = new List<string>();
 
-            var temp = new Archive(SafeHouse.ArchiveFolder);
-            var files = temp.Root.List();
-            var maxchoice = 0;
             bootFiles.Add("None");
-            foreach (KeyValuePair<string, VolumeItem> pair in files)
-            {
-                if (!(pair.Value is VolumeFile) || !pair.Key.StartsWith("boot", StringComparison.InvariantCultureIgnoreCase)) continue;
-                bootFiles.Add(pair.Key);
-                maxchoice++;
-            }
-            //no need to show the control if there are no files starting with boot
-            options.controlEnabled = maxchoice > 0;
-            field.guiActiveEditor = maxchoice > 0;
+            bootFiles.AddRange(BootDirectoryFiles());
+
+            //no need to show the control if there are no available boot files
+            options.controlEnabled = bootFiles.Count > 1;
+            field.guiActiveEditor = bootFiles.Count > 1;
             options.options = bootFiles.ToArray();
 
             //populate diskSpaceUI selector
@@ -321,10 +321,35 @@ namespace kOS.Module
             options.options = sizeOptions;
         }
 
+        private IEnumerable<string> BootDirectoryFiles()
+        {
+            var result = new List<string>();
+
+            var archive = new Archive(SafeHouse.ArchiveFolder);
+
+            var bootDirectory = archive.Open(bootDirectoryPath) as VolumeDirectory;
+
+            if (bootDirectory == null)
+            {
+                return result;
+            }
+
+            var files = bootDirectory.List();
+
+            foreach (KeyValuePair<string, VolumeItem> pair in files)
+            {
+                if (pair.Value is VolumeFile && (pair.Value.Extension.Equals(Volume.KERBOSCRIPT_EXTENSION)
+                    || pair.Value.Extension.Equals(Volume.KOS_MACHINELANGUAGE_EXTENSION)))
+                {
+                    result.Add(pair.Key);
+                }
+            }
+
+            return result;
+        }
+
         public void InitObjects()
         {
-            SafeHouse.Logger.LogWarning("InitObjects: " + (shared == null));
-
             shared = new SharedObjects();
             CreateFactory();
 
@@ -353,6 +378,7 @@ namespace kOS.Module
 
             // initialize archive
             var archive = shared.Factory.CreateArchive();
+
             shared.VolumeMgr.Add(archive);
 
             Messages = new MessageQueue();
@@ -370,16 +396,14 @@ namespace kOS.Module
                 // populate it with the boot file, but only if using a new disk and in PRELAUNCH situation:
                 if (vessel.situation == Vessel.Situations.PRELAUNCH && bootFile != "None" && !SafeHouse.Config.StartOnArchive)
                 {
-                    var bootVolumeFile = archive.Open(bootFile) as VolumeFile;
+                    var bootVolumeFile = archive.Open(BootFilePath) as VolumeFile;
                     if (bootVolumeFile != null)
                     {
-                        VolumePath bootFilePath = VolumePath.FromString(bootFile);
-                        FileContent content = bootVolumeFile.ReadAll();
-                        if (HardDisk.IsRoomFor(bootFilePath, content))
-                        {
-                            HardDisk.SaveFile(bootFilePath, content);
-                        }
-                        else
+                        GlobalPath harddiskPath = GlobalPath.FromVolumePath(
+                            VolumePath.FromString(BootFilePath.Name),
+                            shared.VolumeMgr.GetVolumeRawIdentifier(HardDisk));
+
+                        if (HardDisk.SaveFile(harddiskPath, bootVolumeFile.ReadAll()) == null)
                         {
                             // Throwing an exception during InitObjects will break the initialization and won't show
                             // the error to the user.  So we just log the error instead.  At some point in the future
@@ -389,6 +413,7 @@ namespace kOS.Module
                     }
                 }
             }
+
             shared.VolumeMgr.Add(HardDisk);
 
             // process setting
