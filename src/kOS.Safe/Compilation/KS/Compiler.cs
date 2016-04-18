@@ -2989,7 +2989,7 @@ namespace kOS.Safe.Compilation.KS
             if (node.Nodes.Count == 5)
                 VisitNode(node.Nodes[3]);
 
-            AddOpcode(new OpcodeCall("delete()"));
+            AddOpcode(new OpcodeCall("delete_deprecated()"));
             AddOpcode(new OpcodePop()); // all functions now return a value even if it's a dummy we ignore.
         }
 
