@@ -20,7 +20,7 @@ namespace kOS.UserIO
     public class TelnetWelcomeMenu : MonoBehaviour
     {
         private TelnetSingletonServer telnetServer;
-        private List<kOSProcessor> availableCPUs;
+        private List<kOSProcessorModule> availableCPUs;
         private DateTime lastMenuQueryTime;
         private readonly StringBuilder localMenuBuffer;
         private bool firstTime;
@@ -32,7 +32,7 @@ namespace kOS.UserIO
         {
             firstTime = true;
             localMenuBuffer = new StringBuilder();
-            availableCPUs = new List<kOSProcessor>();
+            availableCPUs = new List<kOSProcessorModule>();
         }
         
         public void Setup(TelnetSingletonServer tServer)
@@ -142,7 +142,7 @@ namespace kOS.UserIO
         
         private bool CPUListChanged()
         {
-            List<kOSProcessor> newList = kOSProcessor.AllInstances();
+            List<kOSProcessorModule> newList = kOSProcessorModule.AllInstances();
             bool itChanged = false;
 
             if (newList.Count != availableCPUs.Count)
@@ -182,7 +182,7 @@ namespace kOS.UserIO
                 String.Format(FORMATTER, "----", "----", "-------", "", "--------------------------------", "")
             };
             longestLength = displayChoices[2].Length;
-            foreach (kOSProcessor kModule in availableCPUs)
+            foreach (kOSProcessorModule kModule in availableCPUs)
             {
                 Part thisPart = kModule.part;
                 KOSNameTag partTag = thisPart.Modules.OfType<KOSNameTag>().FirstOrDefault();

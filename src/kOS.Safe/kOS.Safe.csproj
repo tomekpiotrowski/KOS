@@ -177,7 +177,6 @@
     <Compile Include="Function\IFunctionManager.cs" />
     <Compile Include="ILogger.cs" />
     <Compile Include="IUpdateObserver.cs" />
-    <Compile Include="Module\IProcessor.cs" />
     <Compile Include="Persistence\Archive.cs" />
     <Compile Include="Persistence\FileCategory.cs" />
     <Compile Include="Persistence\Harddisk.cs" />
@@ -252,6 +251,9 @@
     <Compile Include="SafeSharedObjects.cs" />
     <Compile Include="Persistence\PathValue.cs" />
     <Compile Include="Execution\InternalPath.cs" />
+    <Compile Include="Processor\IProcessor.cs" />
+    <Compile Include="Processor\ProcessorManager.cs" />
+    <Compile Include="Processor\BaseProcessor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Compilation\CompiledObject-doc.md" />

@@ -8,9 +8,6 @@ using kOS.Persistence;
 using kOS.Safe;
 using kOS.Safe.Compilation;
 using kOS.Safe.Compilation.KS;
-using kOS.Safe.Module;
-using kOS.Safe.Persistence;
-using kOS.Safe.Screen;
 using kOS.Safe.Utilities;
 using kOS.Utilities;
 using KSP.IO;
@@ -19,21 +16,15 @@ using System.Collections.Generic;
 using System.Linq;
 using kOS.Safe.Execution;
 using UnityEngine;
-using kOS.Safe.Encapsulation;
 using KSP.UI;
-using kOS.Suffixed;
-using kOS.Safe.Communication;
+using kOS.Safe.Persistence;
+using kOS.Safe.Processor;
+using kOS.Processor;
 
 namespace kOS.Module
 {
-    public class kOSProcessor : PartModule, IProcessor, IPartCostModifier, IPartMassModifier
+    public class kOSProcessorModule : PartModule, IPartCostModifier, IPartMassModifier
     {
-        public ProcessorModes ProcessorMode { get; private set; }
-
-        public Harddisk HardDisk { get; private set; }
-
-        public MessageQueue Messages { get; private set; }
-
         public string Tag
         {
             get
@@ -43,10 +34,11 @@ namespace kOS.Module
             }
         }
 
+        private VesselProcessor processor;
+
         private int vesselPartCount;
-        private SharedObjects shared;
-        private static readonly List<kOSProcessor> allMyInstances = new List<kOSProcessor>();
-        private bool firstUpdate = true;
+
+        //private static readonly List<kOSProcessor> allMyInstances = new List<kOSProcessor>();
 
         private MovingAverage averagePower = new MovingAverage();
 
@@ -106,9 +98,9 @@ namespace kOS.Module
         [KSPField(isPersistant = false, guiActive = false)]
         public float ECPerBytePerSecond = 0F;
 
-        public kOSProcessor()
+        public kOSProcessorModule()
         {
-            ProcessorMode = ProcessorModes.READY;
+            processor = new VesselProcessor(ProcessorModes.READY);
         }
 
         public GlobalPath BootFilePath {
@@ -121,7 +113,7 @@ namespace kOS.Module
         public void Activate()
         {
             SafeHouse.Logger.Log("Activate");
-            OpenWindow();
+            processor.OpenWindow();
         }
 
         [KSPField(isPersistant = true, guiName = "kOS Average Power", guiActive = true, guiActiveEditor = true, guiUnits = "EC/s", guiFormat = "0.000")]
@@ -131,8 +123,7 @@ namespace kOS.Module
         public void TogglePower()
         {
             SafeHouse.Logger.Log("Toggle Power");
-            ProcessorModes newProcessorMode = (ProcessorMode != ProcessorModes.OFF) ? ProcessorModes.OFF : ProcessorModes.STARVED;
-            SetMode(newProcessorMode);
+            processor.ToggleMode();
         }
 
         [KSPAction("Open Terminal", actionGroup = KSPActionGroup.None)]
@@ -146,14 +137,14 @@ namespace kOS.Module
         public void Deactivate(KSPActionParam param)
         {
             SafeHouse.Logger.Log("Close Terminal from ActionGroup");
-            CloseWindow();
+            processor.CloseWindow();
         }
 
         [KSPAction("Toggle Terminal", actionGroup = KSPActionGroup.None)]
         public void Toggle(KSPActionParam param)
         {
             SafeHouse.Logger.Log("Toggle Terminal from ActionGroup");
-            ToggleWindow();
+            processor.ToggleWindow();
         }
 
         [KSPAction("Toggle Power", actionGroup = KSPActionGroup.None)]
@@ -161,41 +152,6 @@ namespace kOS.Module
         {
             SafeHouse.Logger.Log("Toggle Power from ActionGroup");
             TogglePower();
-        }
-        public void OpenWindow()
-        {
-            shared.Window.Open();
-        }
-
-        public void CloseWindow()
-        {
-            shared.Window.Close();
-        }
-
-        public void ToggleWindow()
-        {
-            shared.Window.Toggle();
-        }
-
-        public bool WindowIsOpen()
-        {
-            return shared.Window.IsOpen;
-        }
-
-        public bool TelnetIsAttached()
-        {
-            return shared.Window.NumTelnets() > 0;
-        }
-
-        public IScreenBuffer GetScreen()
-        {
-            return shared.Screen;
-        }
-
-        // TODO - later refactor making this kOS.Safer so it can work on ITermWindow, which also means moving all of UserIO's classes too.
-        public Screen.TermWindow GetWindow()
-        {
-            return shared.Window;
         }
 
         //returns basic information on kOSProcessor module in Editor
@@ -245,7 +201,7 @@ namespace kOS.Module
         public float GetModuleMass(float defaultMass, ModifierStagingSituation sit)
         {
             // the 'sit' arg is irrelevant to us, but the interface requires it.
-            
+
             return part.mass - defaultMass; //copied this fix from ProceduralParts mod as we already changed part.mass
             //return additionalMass;
         }
@@ -350,38 +306,12 @@ namespace kOS.Module
 
         public void InitObjects()
         {
-            shared = new SharedObjects();
-            CreateFactory();
-
-            shared.Vessel = vessel;
-            shared.Processor = this;
-            shared.KSPPart = part;
-            shared.UpdateHandler = new UpdateHandler();
-            shared.BindingMgr = new BindingManager(shared);
-            shared.Interpreter = shared.Factory.CreateInterpreter(shared);
-            shared.Screen = shared.Interpreter;
-            shared.ScriptHandler = new KSScript();
-            shared.Logger = new KSPLogger(shared);
-            shared.VolumeMgr = shared.Factory.CreateVolumeManager(shared);
-            shared.ConnectivityMgr = shared.Factory.CreateConnectivityManager();
-            shared.ProcessorMgr = new ProcessorManager();
-            shared.FunctionManager = new FunctionManager(shared);
-            shared.TransferManager = new TransferManager(shared);
-            shared.Cpu = new CPU(shared);
-            shared.SoundMaker = Sound.SoundMaker.Instance;
-
-            // Make the window that is going to correspond to this kOS part:
-            var gObj = new GameObject("kOSTermWindow", typeof(Screen.TermWindow));
-            DontDestroyOnLoad(gObj);
-            shared.Window = (Screen.TermWindow)gObj.GetComponent(typeof(Screen.TermWindow));
-            shared.Window.AttachTo(shared);
+            processor.Initialize();
 
             // initialize archive
             var archive = shared.Factory.CreateArchive();
 
             shared.VolumeMgr.Add(archive);
-
-            Messages = new MessageQueue();
 
             // initialize harddisk
             if (HardDisk == null)
@@ -437,7 +367,7 @@ namespace kOS.Module
             if (!allMyInstances.Contains(this))
             {
                 allMyInstances.Add(this);
-                allMyInstances.Sort(delegate(kOSProcessor a, kOSProcessor b)
+                allMyInstances.Sort(delegate(kOSProcessorModule a, kOSProcessorModule b)
                 {
                     // sort "nulls" first:
                     if (a.part == null || a.part.vessel == null)
@@ -474,38 +404,13 @@ namespace kOS.Module
         /// on vessel A, then all the instances on vessel B, and so on)
         /// </summary>
         /// <returns></returns>
-        public static List<kOSProcessor> AllInstances()
+        public static List<kOSProcessorModule> AllInstances()
         {
             // Doing it this way to force return value to be a shallow-level copy,
             // rather than an exact reference to the internal private list.
             // So if the caller adds/removes from it, it won't mess with the
             // private list we're internally maintaining:
             return allMyInstances.GetRange(0, allMyInstances.Count);
-        }
-
-        private void CreateFactory()
-        {
-            SafeHouse.Logger.LogWarning("Starting Factory Building");
-            bool isAvailable;
-            try
-            {
-                isAvailable = RemoteTechHook.IsAvailable();
-            }
-            catch
-            {
-                isAvailable = false;
-            }
-
-            if (isAvailable)
-            {
-                SafeHouse.Logger.LogWarning("RemoteTech Factory Building");
-                shared.Factory = new RemoteTechFactory();
-            }
-            else
-            {
-                SafeHouse.Logger.LogWarning("Standard Factory Building");
-                shared.Factory = new StandardFactory();
-            }
         }
 
         public void RegisterkOSExternalFunction(object[] parameters)
@@ -516,7 +421,7 @@ namespace kOS.Module
 
         public static int AssignNewId()
         {
-            var config = PluginConfiguration.CreateForType<kOSProcessor>();
+            var config = PluginConfiguration.CreateForType<kOSProcessorModule>();
             config.load();
             var id = config.GetValue<int>("CpuIDMax") + 1;
             config.SetValue("CpuIDMax", id);
@@ -540,6 +445,7 @@ namespace kOS.Module
             if (!IsAlive()) return;
             UpdateVessel();
             UpdateObservers();
+            UpdateParts();
         }
 
         public void FixedUpdate()
@@ -568,22 +474,6 @@ namespace kOS.Module
             }
         }
 
-        private void UpdateObservers()
-        {
-            if (ProcessorMode == ProcessorModes.READY)
-            {
-                if (shared.UpdateHandler != null) shared.UpdateHandler.UpdateObservers(TimeWarp.deltaTime);
-                UpdateParts();
-            }
-        }
-
-        private void UpdateFixedObservers()
-        {
-            if (ProcessorMode == ProcessorModes.READY)
-            {
-                if (shared.UpdateHandler != null) shared.UpdateHandler.UpdateFixedObservers(TimeWarp.fixedDeltaTime);
-            }
-        }
 
         private bool IsAlive()
         {
@@ -604,12 +494,12 @@ namespace kOS.Module
 
             var missingHardDisks = false;
             var attachedVolumes = new List<Volume>();
-            var processors = new List<kOSProcessor>();
+            var processors = new List<kOSProcessorModule>();
 
             // Look for all the processors that exists in the vessel
             foreach (var partObj in vessel.parts)
             {
-                kOSProcessor processorPart;
+                kOSProcessorModule processorPart;
                 if (!PartIsKosProc(partObj, out processorPart)) continue;
 
                 processors.Add(processorPart);
@@ -634,9 +524,9 @@ namespace kOS.Module
             vesselPartCount = vessel.parts.Count;
         }
 
-        public bool PartIsKosProc(Part input, out kOSProcessor proc)
+        public bool PartIsKosProc(Part input, out kOSProcessorModule proc)
         {
-            foreach (var processor in input.Modules.OfType<kOSProcessor>())
+            foreach (var processor in input.Modules.OfType<kOSProcessorModule>())
             {
                 proc = processor;
                 return true;
@@ -644,10 +534,6 @@ namespace kOS.Module
 
             proc = null;
             return false;
-        }
-
-        public override void OnFixedUpdate()
-        {
         }
 
         public override void OnInactive()
@@ -797,47 +683,6 @@ namespace kOS.Module
             }
         }
 
-        public void SetMode(ProcessorModes newProcessorMode)
-        {
-            if (newProcessorMode != ProcessorMode)
-            {
-                ProcessorMode = newProcessorMode;
-
-                ProcessorModeChanged();
-            }
-        }
-
-        private void ProcessorModeChanged()
-        {
-            switch (ProcessorMode)
-            {
-            case ProcessorModes.READY:
-                shared.VolumeMgr.SwitchTo(SafeHouse.Config.StartOnArchive
-                    ? shared.VolumeMgr.GetVolume(0)
-                    : HardDisk);
-                if (shared.Cpu != null) shared.Cpu.Boot();
-                if (shared.Interpreter != null) shared.Interpreter.SetInputLock(false);
-                if (shared.Window != null) shared.Window.IsPowered = true;
-                break;
-
-            case ProcessorModes.OFF:
-            case ProcessorModes.STARVED:
-                if (shared.Interpreter != null) shared.Interpreter.SetInputLock(true);
-                if (shared.Window != null) shared.Window.IsPowered = false;
-                if (shared.BindingMgr != null) shared.BindingMgr.UnBindAll();
-                break;
-            }
-
-        }
-
-        public void ExecuteInterProcCommand(InterProcCommand command)
-        {
-            if (command != null)
-            {
-                command.Execute(shared);
-            }
-        }
-
         public void SetAutopilotMode(int mode)
         {
             UIStateToggleButton[] modeButtons = FindObjectOfType<VesselAutopilotUI>().modeButtons;
@@ -863,10 +708,5 @@ namespace kOS.Module
             return false;
         }
 
-        public void Send(Structure content)
-        {
-            double sentAt = Planetarium.GetUniversalTime();
-            Messages.Push(Message.Create(content, sentAt, sentAt, new VesselTarget(shared), Tag));
-        }
     }
 }

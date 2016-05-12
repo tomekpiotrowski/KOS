@@ -464,7 +464,7 @@ namespace kOS.Function
             object processorTagOrVolume = PopValueAssert(shared, true);
             AssertArgBottomAndConsume(shared);
 
-            kOSProcessor processor;
+            kOSProcessorModule processor;
 
             if (processorTagOrVolume is Volume) {
                 processor = shared.ProcessorMgr.GetProcessor(processorTagOrVolume as Volume);

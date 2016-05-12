@@ -29,10 +29,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Assembly-CSharp, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Resources\Assembly-CSharp.dll</HintPath>
-    </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
       <HintPath>..\..\Resources\Assembly-CSharp-firstpass.dll</HintPath>
     </Reference>
@@ -48,12 +44,14 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Resources\UnityEngine.dll</HintPath>
-    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>..\..\Resources\UnityEngine.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>..\..\Resources\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>..\..\Resources\UnityEngine.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -133,7 +131,6 @@
     <Compile Include="Suffixed\FlightControl.cs" />
     <Compile Include="Suffixed\GeoCoordinates.cs" />
     <Compile Include="Screen\Interpreter.cs" />
-    <Compile Include="Module\kOSProcessor.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Suffixed\IKOSTargetable.cs" />
     <Compile Include="Suffixed\Node.cs" />
@@ -185,7 +182,6 @@
     <Compile Include="AddOns\RemoteTech\RemoteTechAntennaModuleFields.cs" />
     <Compile Include="Suffixed\CrewMember.cs" />
     <Compile Include="Suffixed\PartModuleField\kOSProcessorFields.cs" />
-    <Compile Include="Communication\ProcessorManager.cs" />
     <Compile Include="Communication\InterVesselManager.cs" />
     <Compile Include="Serialization\ConfigNodeFormatter.cs" />
     <Compile Include="Communication\ConnectivityManager.cs" />
@@ -210,6 +206,12 @@
     <Compile Include="Communication\PlanetariumTimeProvider.cs" />
     <Compile Include="Communication\Message.cs" />
     <Compile Include="Communication\MessageQueue.cs" />
+    <Compile Include="Processor\Processor.cs" />
+    <Compile Include="Processor\MainframeProcessor.cs" />
+    <Compile Include="Processor\VesselProcessor.cs" />
+    <Compile Include="VesselSharedObjects.cs" />
+    <Compile Include="Module\kOSProcessorModule.cs" />
+    <Compile Include="Factories\FactoryProvider.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\kOS.Safe\kOS.Safe.csproj">
@@ -249,4 +251,7 @@
   </ItemGroup>
   <ItemGroup />
   <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Processor\" />
+  </ItemGroup>
 </Project>

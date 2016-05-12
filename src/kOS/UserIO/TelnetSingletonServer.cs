@@ -54,7 +54,7 @@ namespace kOS.UserIO
         private volatile Queue<char> outQueue;
         private readonly object outQueueAccess = new object(); // To make all access of the outQueue atomic between threads.
         
-        public kOSProcessor ConnectedProcessor { get; private set; }
+        public kOSProcessorModule ConnectedProcessor { get; private set; }
         
         private Thread inThread;
         private Thread outThread;
@@ -183,7 +183,7 @@ namespace kOS.UserIO
         /// Connect this TelnetSingletonServer to a CPU to start acting as its terminal.
         /// </summary>
         /// <param name="processor">The kOSProcessor PartModule to attach to</param>
-        public void ConnectToProcessor(kOSProcessor processor)
+        public void ConnectToProcessor(kOSProcessorModule processor)
         {
             ConnectedProcessor = processor;
             ConnectedProcessor.GetScreen().SetSize(ClientHeight, ClientWidth); // Reset the GUI terminal to match the telnet window.

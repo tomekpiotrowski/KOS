@@ -136,7 +136,7 @@ namespace kOS.Function
 
             if (shared.VolumeMgr == null) return list;
 
-            foreach (kOSProcessor processor in shared.ProcessorMgr.processors.Values)
+            foreach (kOSProcessorModule processor in shared.ProcessorMgr.processors.Values)
             {
                 string name = processor.name + (shared.Processor == processor ? "*" : "");
                 int volumeId = shared.VolumeMgr.GetVolumeId(processor.HardDisk);

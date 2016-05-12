@@ -11,7 +11,7 @@ namespace kOS.Binding
     {
         public override void AddTo(SharedObjects shared)
         {
-            shared.BindingMgr.AddGetter("CORE", () => new Core((kOSProcessor)shared.Processor, shared));
+            shared.BindingMgr.AddGetter("CORE", () => new Core((kOSProcessorModule)shared.Processor, shared));
 
             shared.BindingMgr.AddSetter("TARGET", val =>
             {

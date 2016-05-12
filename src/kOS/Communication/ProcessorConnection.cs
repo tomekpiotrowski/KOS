@@ -11,7 +11,7 @@ namespace kOS.Communication
     public class ProcessorConnection : Connection
     {
         private SharedObjects shared;
-        private kOSProcessor processor;
+        private kOSProcessorModule processor;
 
         public override bool Connected
         {
@@ -29,7 +29,7 @@ namespace kOS.Communication
             }
         }
 
-        public ProcessorConnection(kOSProcessor processor, SharedObjects shared) : base()
+        public ProcessorConnection(kOSProcessorModule processor, SharedObjects shared) : base()
         {
             this.shared = shared;
             this.processor = processor;

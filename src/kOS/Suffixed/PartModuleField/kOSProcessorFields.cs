@@ -11,9 +11,9 @@ namespace kOS.Suffixed.PartModuleField
     [kOS.Safe.Utilities.KOSNomenclature("KOSProcessor")]
     public class kOSProcessorFields : PartModuleFields
     {
-        protected readonly kOSProcessor processor;
+        protected readonly kOSProcessorModule processor;
 
-        public kOSProcessorFields(kOSProcessor processor, SharedObjects sharedObj):base(processor, sharedObj)
+        public kOSProcessorFields(kOSProcessorModule processor, SharedObjects sharedObj):base(processor, sharedObj)
         {
             this.processor = processor;
             InitializeSuffixes();

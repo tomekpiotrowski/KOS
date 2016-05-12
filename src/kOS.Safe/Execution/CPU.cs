@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using Debug = kOS.Safe.Utilities.Debug;
 using kOS.Safe.Persistence;
+using kOS.Safe.Processor;
 
 namespace kOS.Safe.Execution
 {
@@ -114,7 +115,7 @@ namespace kOS.Safe.Execution
 
                     bootMessage = nags.Aggregate(bootMessage, (current, msg) => current + (msg + "\n"));
                     bootMessage += "##################################################\n";
-                    shared.Processor.SetMode(Module.ProcessorModes.OFF);
+                    shared.Processor.SetMode(ProcessorModes.OFF);
                 }
                 shared.Screen.Print(bootMessage);
             }

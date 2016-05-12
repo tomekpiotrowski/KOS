@@ -23,7 +23,7 @@ namespace kOS
             VersionInfo = new VersionInfo(ver.Major, ver.Minor, ver.Build);
         }
 
-        public Core(kOSProcessor processor, SharedObjects shared):base(processor, shared)
+        public Core(kOSProcessorModule processor, SharedObjects shared):base(processor, shared)
         {
             InitializeSuffixes();
         }

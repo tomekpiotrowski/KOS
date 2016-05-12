@@ -23,7 +23,7 @@ namespace kOS.Suffixed.PartModuleField
             if (moduleGimbal != null)
                 return new GimbalFields(moduleGimbal, shared);
 
-            var processor = mod as kOSProcessor;
+            var processor = mod as kOSProcessorModule;
 
             if (processor != null) {
                 return new kOSProcessorFields(processor, shared);

@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using kOS.Safe.Compilation;
 using kOS.Safe.Persistence;
-using kOS.Safe.Encapsulation;
 using kOS.Screen;
 using kOS.Safe.Exceptions;
 using kOS.Safe.Execution;

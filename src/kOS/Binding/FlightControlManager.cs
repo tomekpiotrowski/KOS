@@ -216,7 +216,7 @@ namespace kOS.Binding
                 currentVessel.Autopilot.SetMode(autopilotMode);
                 //currentVessel.Autopilot.Enable();
                 // change the autopilot indicator
-                ((Module.kOSProcessor)Shared.Processor).SetAutopilotMode((int)autopilotMode);
+                ((Module.kOSProcessorModule)Shared.Processor).SetAutopilotMode((int)autopilotMode);
                 if (RemoteTechHook.IsAvailable(currentVessel.id))
                 {
                     Debug.Log(string.Format("kOS: Adding RemoteTechPilot: autopilot For : " + currentVessel.id));

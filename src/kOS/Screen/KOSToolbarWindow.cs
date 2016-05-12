@@ -513,7 +513,7 @@ namespace kOS.Screen
             Vessel prevVessel = null;
             bool atLeastOne = false;
 
-            foreach (kOSProcessor kModule in kOSProcessor.AllInstances())
+            foreach (kOSProcessorModule kModule in kOSProcessorModule.AllInstances())
             {
                 atLeastOne = true;
                 Part thisPart = kModule.part;
@@ -544,7 +544,7 @@ namespace kOS.Screen
 
             DrawPart(part);
 
-            kOSProcessor processorModule = part.Modules.OfType<kOSProcessor>().FirstOrDefault();
+            kOSProcessorModule processorModule = part.Modules.OfType<kOSProcessorModule>().FirstOrDefault();
 
             if (processorModule == null)
             {
